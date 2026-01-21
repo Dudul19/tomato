@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - ACCOUNT CLEANER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_TRASH="🗑️"
+ICON_USER="👤"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_GEAR="⚙"
+ICON_TIME="🕒"
+ICON_STAR="✨"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO CLEANER${C_RESET} ${C_GOLD}(EXPIRED USERS)${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+echo -e "  ${C_GOLD}${ICON_GEAR} Scanning for expired accounts...${C_RESET}"
+echo -e ""
+
+# Header Tabel
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+printf "${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-15s${C_RESET} | ${C_GOLD}%-15s${C_RESET} | ${C_GOLD}%-16s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "USERNAME" "EXP DATE" "STATUS"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+today_seconds=$(date +%s)
+deleted_count=0
+scan_count=0
+
+# Parsing /etc/shadow
+# Field 1: Username, Field 8: Expiration Date (Days since Epoch)
+while IFS=: read -r username _ _ _ _ _ _ expire_days _; do
+    # Skip jika expire_days kosong atau tidak valid
+    if [[ -z "$expire_days" || "$expire_days" == "99999" || "$expire_days" == "" ]]; then
+        continue
+    fi
+    
+    # Hitung Tanggal Expired
+    expire_seconds=$((expire_days * 86400))
+    exp_date_str=$(date -d @$expire_seconds "+%Y-%m-%d")
+    
+    # Cek Status
+    if [[ $expire_seconds -lt $today_seconds ]]; then
+        # EXPIRED -> DELETE
+        userdel -f "$username" &> /dev/null
+        rm -rf /home/$username
+        
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} | ${C_CREAM}%-15s${C_RESET} | ${C_TOMATO}%-16s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "$username" "$exp_date_str" "DELETED ${ICON_TRASH}"
+        ((deleted_count++))
+    else
+        # ACTIVE (Optional: Uncomment baris bawah jika ingin melihat user aktif juga)
+        # printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} | ${C_CREAM}%-15s${C_RESET} | ${C_SAGE}%-16s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "$username" "$exp_date_str" "ACTIVE ${ICON_CHECK}"
+        ((scan_count++))
+    fi
+
+done < /etc/shadow
+
+# Jika tidak ada yang dihapus
+if [[ $deleted_count -eq 0 ]]; then
+     printf "${C_BURGUNDY}║${C_RESET} %-52s ${C_BURGUNDY}║${C_RESET}\n" "        No expired accounts found today."
+fi
+
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+# ==========================================================
+#  SUMMARY
+# ==========================================================
+echo -e ""
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e "  ${C_GOLD}${ICON_TRASH} Total Deleted Users :${C_RESET} ${C_TOMATO}$deleted_count Accounts${C_RESET}"
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e ""
+echo -e "  ${C_SAGE}${ICON_CHECK} Process Completed.${C_RESET}"
+echo -e ""
+
+read -n 1 -s -r -p "Press any key to return..."
+menu

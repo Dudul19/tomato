@@ -1,0 +1,124 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - RESTART ALL
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_REFRESH="🔄"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_GEAR="⚙"
+ICON_STAR="✨"
+ICON_ZAP="⚡"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(RESTART ALL)${C_RESET}              ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# Fungsi Standard Restart
+restart_service() {
+    local name="$1"
+    local service="$2"
+    
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-30s${C_RESET} : " "$name"
+    
+    if systemctl list-units --full -all | grep -Fq "$service"; then
+        systemctl restart "$service" > /dev/null 2>&1
+        if [ $? -eq 0 ]; then
+             echo -e "${C_SAGE}[ OK ] ${ICON_CHECK}${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+        else
+             echo -e "${C_TOMATO}[FAIL] ${ICON_CROSS}${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+        fi
+    else
+        echo -e "${C_GOLD}[SKIP] ${ICON_GEAR}${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    fi
+    sleep 0.2
+}
+
+# Fungsi Khusus UDP Mini (Reset Cycle)
+reset_udp_mini() {
+    local name="$1"
+    local service="$2"
+    
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-30s${C_RESET} : " "$name"
+    
+    if systemctl list-units --full -all | grep -Fq "$service"; then
+        # Logic Reset: Disable -> Stop -> Enable -> Start
+        systemctl disable "$service" > /dev/null 2>&1
+        systemctl stop "$service" > /dev/null 2>&1
+        systemctl enable "$service" > /dev/null 2>&1
+        systemctl start "$service" > /dev/null 2>&1
+        
+        if [ $? -eq 0 ]; then
+             echo -e "${C_SAGE}[RESET] ${ICON_ZAP}${C_RESET}            ${C_BURGUNDY}║${C_RESET}"
+        else
+             echo -e "${C_TOMATO}[FAIL] ${ICON_CROSS}${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+        fi
+    else
+        echo -e "${C_GOLD}[SKIP] ${ICON_GEAR}${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    fi
+    sleep 0.2
+}
+
+# ==========================================================
+#  MAIN PROCESS
+# ==========================================================
+
+draw_header
+
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}CORE SERVICES${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# Core
+restart_service "WebSocket Python" "ws"
+restart_service "Haproxy Loadbalancer" "haproxy"
+restart_service "Xray Core" "xray"
+restart_service "Nginx Webserver" "nginx"
+
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}VPN & SSH${C_RESET}                            ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# VPN
+restart_service "OpenVPN Service" "openvpn"
+restart_service "OpenSSH Service" "ssh"
+restart_service "Dropbear SSH" "dropbear"
+restart_service "Fail2Ban Protection" "fail2ban"
+
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}UDP MINI RESET${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# UDP Mini Hard Reset
+reset_udp_mini "UDP Mini 1" "udp-mini-1"
+reset_udp_mini "UDP Mini 2" "udp-mini-2"
+reset_udp_mini "UDP Mini 3" "udp-mini-3"
+
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+echo -e "  ${C_SAGE}${ICON_CHECK} Service refresh completed.${C_RESET}"
+echo -e "  ${C_GOLD}${ICON_REFRESH} Returning to menu in 2 seconds...${C_RESET}"
+sleep 2
+menu

@@ -1,0 +1,100 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - SSH MEMBER LIST
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_USER="👤"
+ICON_LOCK="🔒"
+ICON_UNLOCK="🔓"
+ICON_STAR="✨"
+ICON_LIST="📜"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MONITOR${C_RESET} ${C_GOLD}(SSH MEMBER)${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}REGISTERED ACCOUNTS${C_RESET}                  ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+# Header Kolom
+printf "${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-18s %-16s %-12s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "USERNAME" "EXPIRY" "STATUS"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+total_users=0
+
+# Loop melalui /etc/passwd
+while IFS=: read -r username _ uid _ _ _ _; do
+    # Filter UID >= 1000 dan bukan 'nobody'
+    if [[ $uid -ge 1000 && "$username" != "nobody" ]]; then
+        
+        # Ambil tanggal expired
+        exp_raw=$(chage -l "$username" | grep "Account expires" | cut -d: -f2 | sed 's/^[ \t]*//')
+        
+        # Format Tanggal
+        if [[ "$exp_raw" == "never" ]]; then
+            exp_display="Lifetime"
+        else
+            # Coba format tanggal agar rapi (tergantung locale system)
+            exp_display=$(date -d "$exp_raw" "+%d-%b-%Y" 2>/dev/null || echo "$exp_raw")
+        fi
+
+        # Cek Status Lock (L = Locked, P = Password set/Active)
+        status_code=$(passwd -S "$username" | awk '{print $2}')
+        if [[ "$status_code" == "L" ]]; then
+            status_icon="${ICON_LOCK}"
+            status_text="${C_TOMATO}LOCKED${C_RESET}"
+        else
+            status_icon="${ICON_UNLOCK}"
+            status_text="${C_SAGE}ACTIVE${C_RESET}"
+        fi
+
+        # Print Baris Table
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_CREAM}%-16s${C_RESET} %-19s ${C_BURGUNDY}║${C_RESET}\n" "${username}" "${exp_display}" "${status_text} ${status_icon}"
+        
+        ((total_users++))
+    fi
+done < /etc/passwd
+
+# Jika tidak ada user
+if [[ $total_users -eq 0 ]]; then
+    printf "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}%-48s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "             No SSH users found"
+fi
+
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+# Footer Info
+echo -e ""
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e "  ${C_GOLD}${ICON_USER} Total Accounts :${C_RESET} ${C_SAGE}$total_users User(s)${C_RESET}"
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e ""
+
+read -n 1 -s -r -p "Press any key to return..."
+menu

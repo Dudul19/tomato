@@ -1,0 +1,126 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - AUTOKILL MANAGER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_STAR="✨"
+ICON_SHIELD="🛡️"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_GEAR="⚙"
+ICON_ARROW="➜"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO AUTOKILL${C_RESET} ${C_GOLD}(MULTI-LOGIN)${C_RESET}            ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_success() {
+    echo -e "  ${C_SAGE}${ICON_CHECK} SUCCESS:${C_RESET} ${C_CREAM}$1${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+# Reset logs
+rm -rf /root/log-limit.txt
+touch /root/log-limit.txt
+
+# Check Status
+cek=$(grep -c -E "^# Autokill" /etc/cron.d/tendang)
+if [[ "$cek" = "1" ]]; then
+    sts="${C_SAGE}ACTIVE [ON]${C_RESET}"
+else
+    sts="${C_TOMATO}INACTIVE [OFF]${C_RESET}"
+fi
+
+draw_header
+
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}                  ${C_GOLD}CURRENT STATUS${C_RESET}                    ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+echo -e "   ${C_SAGE}${ICON_SHIELD} Status Autokill :${C_RESET} $sts"
+echo -e "${C_BURGUNDY}  ------------------------------------------------------${C_RESET}"
+echo -e ""
+echo -e "  ${C_GOLD}[1]${C_RESET} AutoKill Every 1 Minute"
+echo -e "  ${C_GOLD}[2]${C_RESET} AutoKill Every 2 Minutes"
+echo -e "  ${C_GOLD}[3]${C_RESET} AutoKill Every 3 Minutes"
+echo -e "  ${C_GOLD}[4]${C_RESET} ${C_TOMATO}Turn Off AutoKill${C_RESET}"
+echo -e "  ${C_GOLD}[0]${C_RESET} Back to Menu"
+echo -e ""
+echo -e "  ${C_GOLD}${ICON_ARROW} Select Option :${C_RESET}"
+read -p "      > " AutoKill
+
+case $AutoKill in
+    1|2|3)
+        echo -e ""
+        echo -e "  ${C_GOLD}[?] Max Allowed MultiLogin :${C_RESET}"
+        read -p "      > " max
+        
+        # Validation
+        if [[ ! "$max" =~ ^[0-9]+$ ]]; then
+             echo -e "  ${C_TOMATO}${ICON_CROSS} Invalid number!${C_RESET}"
+             sleep 1
+             autokill
+             exit
+        fi
+
+        echo > /etc/cron.d/tendang
+        echo "# Autokill" >> /etc/cron.d/tendang
+        echo "*/$AutoKill * * * * root /usr/sbin/tendang $max" >> /etc/cron.d/tendang
+        
+        draw_header
+        echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}AUTOKILL ACTIVATED SUCCESSFULLY${C_RESET}        ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+        printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-18s${C_RESET} ${C_CREAM}: %-29s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Max Login" "$max Session"
+        printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-18s${C_RESET} ${C_CREAM}: %-29s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Interval" "$AutoKill Minute(s)"
+        echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+        ;;
+        
+    4)
+        echo > /etc/cron.d/tendang
+        draw_header
+        echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}${ICON_CROSS}        ${C_GOLD}AUTOKILL DEACTIVATED${C_RESET}                  ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}Service has been stopped successfully.${C_RESET}               ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+        ;;
+        
+    0)
+        menu
+        ;;
+        
+    *)
+        echo -e "  ${C_TOMATO}${ICON_CROSS} Invalid Option!${C_RESET}"
+        sleep 1
+        autokill
+        ;;
+esac
+
+echo -e ""
+read -n 1 -s -r -p "Press any key to back on menu"
+menu

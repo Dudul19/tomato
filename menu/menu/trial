@@ -1,0 +1,158 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - TRIAL SSH CREATOR
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_SSH="🚀"
+ICON_KEY="🔑"
+ICON_TIME="⏳"
+ICON_USER="👤"
+ICON_NET="🌐"
+ICON_CHECK="✔"
+ICON_STAR="✨"
+ICON_LINK="🔗"
+
+# ==========================================================
+#  PERMISSION CHECK
+# ==========================================================
+IPVPES="https://raw.githubusercontent.com/dudul19/tomato/main/izin"
+
+function checking_sc() {
+    ipsaya=$(curl -sS ipv4.icanhazip.com)
+    data_server=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+    date_list=$(date +"%Y-%m-%d" -d "$data_server")
+    
+    useexp=$(wget -qO- $IPVPES | grep $ipsaya | awk '{print $3}')
+    
+    if [[ "$date_list" < "$useexp" ]]; then
+        return 0
+    else
+        clear
+        echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET}              ${C_TOMATO}🚫 ACCESS DENIED 🚫${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}Your VPS IP has been banned or not registered!${C_RESET}       ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+        exit 1
+    fi
+}
+checking_sc
+
+# ==========================================================
+#  UI FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(TRIAL SSH)${C_RESET}               ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_TIME} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# 1. Input Timer
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}               ${C_GOLD}CREATE TRIAL ACCOUNT${C_RESET}                   ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+
+echo -e "  ${C_CREAM}Enter validity time in minutes.${C_RESET}"
+read -p "  ${ICON_TIME} Minutes (Default 60): " timer
+if [[ -z "$timer" ]]; then timer=60; fi
+
+# 2. Variable Generation
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "No Domain")
+IP=$(curl -sS ipv4.icanhazip.com)
+user="Trial$(date +%s | tail -c 4)"
+Pass="1"
+masaaktif=1 # Safety net for useradd
+
+# 3. Create User System
+print_status "Creating System User"
+useradd -e $(date -d "$masaaktif days" +"%Y-%m-%d") -s /bin/false -M $user
+echo "$user:$Pass" | chpasswd
+
+# 4. Database Update
+expe=$(date -d "$masaaktif days" +"%d %b %Y")
+echo "#ssh# ${user} ${Pass} ${expe}" >> /etc/ssh/.ssh.db
+
+# 5. Create Cronjob (Auto Kill)
+# Memastikan script z9dtrial dipanggil sesuai interval
+cat > /etc/cron.d/trialssh-${user} << END
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+*/${timer} * * * * root /usr/local/sbin/z9dtrial ssh ${user} ${timer}
+END
+service cron restart > /dev/null 2>&1
+
+# 6. Generate Web File
+print_status "Generating Output File"
+FILE_PATH="/var/www/html/ssh-$user.txt"
+cat > $FILE_PATH <<-END
+════════════════════════════
+    TOMATO TRIAL ACCOUNT
+════════════════════════════
+Username      : $user
+Password      : $Pass
+Expired       : $timer Minutes
+════════════════════════════
+IP            : $IP
+Host          : $domain
+Port OpenSSH  : 22
+Port Dropbear : 109, 143
+Port SSL/TLS  : 443
+Port WS SSL   : 443
+Port WS HTTP  : 80
+════════════════════════════
+Payload WS    : GET / HTTP/1.1[crlf]Host: $domain[crlf]Upgrade: websocket[crlf][crlf]
+════════════════════════════
+END
+
+# 7. Final Display
+clear
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}TRIAL CREATED SUCCESSFULLY${C_RESET}       ${C_SAGE}${ICON_SSH}${C_RESET}         ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}ACCOUNT DETAILS${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$user"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Password" "$Pass"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Expired In" "$timer Minutes"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}CONNECTION INFO${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Host/IP" "$domain"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Port WS" "80, 2082"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Port SSL" "443, 2053"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_LINK} Copy Link:${C_RESET} ${C_SAGE}http://$domain:81/ssh-$user.txt${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+echo -e "  ${C_SAGE}${ICON_CHECK} Cronjob set to delete user in $timer minutes.${C_RESET}"
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+exit 0

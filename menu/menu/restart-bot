@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - RESTART BOT
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_BOT="🤖"
+ICON_REFRESH="🔄"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_GEAR="⚙"
+ICON_STAR="✨"
+
+# ==========================================================
+#  UI FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(RESTART BOT)${C_RESET}              ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}               ${C_GOLD}PROCESS EXECUTION${C_RESET}                      ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+
+# 1. Refresh Firewall (Sesuai script asli)
+print_status "Reloading Netfilter/Firewall"
+netfilter-persistent > /dev/null 2>&1
+
+# 2. Stop Service
+print_status "Stopping Bot Service (kyt)"
+systemctl stop kyt > /dev/null 2>&1
+sleep 1
+
+# 3. Start Service
+print_status "Starting Bot Service (kyt)"
+systemctl start kyt > /dev/null 2>&1
+systemctl enable kyt > /dev/null 2>&1
+
+# 4. Verification
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+printf "  ${C_CREAM}%-30s${C_RESET} : " "Service Status"
+
+if systemctl is-active --quiet kyt; then
+    echo -e "${C_SAGE}[ ONLINE ] ${ICON_CHECK}${C_RESET}"
+    STATUS_MSG="Bot is running successfully."
+else
+    echo -e "${C_TOMATO}[ FAILED ] ${ICON_CROSS}${C_RESET}"
+    STATUS_MSG="Failed to start bot service. Check logs."
+fi
+
+echo -e ""
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}PROCESS COMPLETED${C_RESET}           ${C_SAGE}${ICON_REFRESH}${C_RESET}        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Action" "Restart Service"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Result" "$STATUS_MSG"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+# Mengembalikan ke menu panel bot (sesuai konteks script sebelumnya)
+mbot-panel

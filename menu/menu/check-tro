@@ -1,0 +1,166 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - TROJAN CHECKER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_STAR="✨"
+ICON_USER="👤"
+ICON_KEY="🔑"
+ICON_GLOBE="🌐"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_GEAR="⚙"
+ICON_LINK="🔗"
+ICON_LIST="📜"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO CHECKER${C_RESET} ${C_GOLD}(TROJAN DETAILS)${C_RESET}            ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# --- 1. LIST USERS ---
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}               ${C_GOLD}REGISTERED USERS${C_RESET}                     ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+
+# Ambil list user dari config (Format: #! username exp)
+# Menggunakan loop untuk format kolom yang rapi
+user_list=$(grep -E "^#! " "/etc/xray/config.json" | cut -d ' ' -f 2 | sort | uniq)
+
+if [[ -z "$user_list" ]]; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} No Trojan users found.${C_RESET}"
+    echo -e ""
+    read -n 1 -s -r -p "Press any key to return..."
+    m-trojan
+    exit
+else
+    # Tampilkan user dalam 2 kolom
+    echo "$user_list" | pr -2 -t -w 60 | while IFS= read -r line; do
+        echo -e "  ${C_CREAM}${line}${C_RESET}"
+    done
+fi
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e ""
+
+# --- 2. INPUT USER ---
+echo -e "  ${C_GOLD}[?] Input Username to Check :${C_RESET}"
+read -p "      > " user
+
+# Validasi User
+if [[ -z "$user" ]]; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Error: Input cannot be empty.${C_RESET}"
+    sleep 1
+    m-trojan
+    exit
+fi
+
+# Cek apakah user ada di config
+if ! grep -q "#! $user " "/etc/xray/config.json"; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Error: User '$user' not found.${C_RESET}"
+    sleep 1
+    m-trojan
+    exit
+fi
+
+# --- 3. GET DATA ---
+print_status "Fetching Account Details"
+
+# Load Configs
+CITY=$(cat /etc/xray/city 2>/dev/null || echo "Unknown")
+ISP=$(cat /etc/xray/isp 2>/dev/null || echo "Unknown")
+domain=$(cat /etc/xray/domain 2>/dev/null)
+
+# Load Limits & Quota
+iplimit=$(cat /etc/kyt/limit/trojan/ip/$user 2>/dev/null || echo "Unlimited")
+
+if [[ -e /etc/trojan/$user ]]; then
+    QuotaBytes=$(cat /etc/trojan/$user)
+    QuotaGB=$((QuotaBytes / 1024 / 1024 / 1024))
+else
+    QuotaGB="0"
+fi
+
+# Load UUID & Exp
+# Logic: Cari blok user, ambil UUID di dalamnya
+uuid=$(grep -E "^},{" "/etc/xray/config.json" | grep -i "\"${user}\"" | cut -d " " -f 2 | cut -d '"' -f 2 | uniq | head -1)
+exp=$(grep -E "^#! " "/etc/xray/config.json" | grep -w "$user" | cut -d ' ' -f 3 | head -1)
+
+# Generate Links
+trojanlink="trojan://${uuid}@${domain}:443?path=%2Ftrojan-ws&security=tls&host=${domain}&type=ws&sni=${domain}#${user}"
+trojanlink_grpc="trojan://${uuid}@${domain}:443?mode=gun&security=tls&type=grpc&serviceName=trojan-grpc&sni=${domain}#${user}"
+# Link Non-TLS (Port 80)
+trojanlink_ntls="trojan://${uuid}@${domain}:80?path=%2Ftrojan-ws&security=none&host=${domain}&type=ws#${user}"
+
+# --- 4. DISPLAY RESULT ---
+clear
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}ACCOUNT DETAILS RETRIEVED${C_RESET}      ${C_SAGE}${ICON_LIST}${C_RESET}        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+# Account Info
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$user"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Expired" "$exp"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "IP Limit" "$iplimit Device(s)"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Quota" "$QuotaGB GB"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Host/IP" "$domain"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "ISP" "$ISP"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+# Config Info
+printf " ${C_BURGUNDY}║${C_RESET} ${C_SAGE}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Port TLS" "443"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_SAGE}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Port NTLS" "80"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_SAGE}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Path WS" "/trojan-ws"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_SAGE}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Service" "trojan-grpc"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_SAGE}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "UUID" "${uuid}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+# Links
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_LINK} LINK WS TLS${C_RESET}                                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}${trojanlink}${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_LINK} LINK WS NON-TLS${C_RESET}                                   ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}${trojanlink_ntls}${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_LINK} LINK GRPC${C_RESET}                                         ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}${trojanlink_grpc}${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_GLOBE} OPENCLASH CONFIG${C_RESET}                                  ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}https://${domain}:81/trojan-$user.txt${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+# --- 5. FOOTER ---
+echo -e ""
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e "  ${C_GOLD}${ICON_STAR} Thank you for using Tomato Autoscript ${ICON_STAR}${C_RESET}"
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+m-trojan

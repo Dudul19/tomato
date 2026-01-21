@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - BOT MANAGER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_ROBOT="🤖"
+ICON_STAR="✨"
+ICON_ARROW="➜"
+ICON_CHECK="✔"
+ICON_GEAR="⚙"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}  ${C_TOMATO}NOTIFICATION BOT MANAGER${C_RESET} ${C_GOLD}(TELEGRAM)${C_RESET}        ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} TEAM   : ${C_CREAM}TFNUKLIR (2025)${C_RESET}                    ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_success_box() {
+    local token=$1
+    local id=$2
+    echo -e ""
+    echo -e " ${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e " ${C_BURGUNDY}║${C_RESET}    ${C_SAGE}${ICON_CHECK}  SUCCESSFULLY UPDATED BOT DATABASE ${ICON_CHECK}${C_RESET}       ${C_BURGUNDY}║${C_RESET}"
+    echo -e " ${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_ROBOT} Bot Token :${C_RESET} ${C_CREAM}${token:0:20}...${C_RESET}"
+    echo -e " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_GEAR} Admin ID  :${C_RESET} ${C_CREAM}${id}${C_RESET}"
+    echo -e " ${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+# Prepare Directory
+mkdir -p /etc/bot
+touch /etc/bot/.bot.db
+
+draw_header
+
+# Tutorial Section
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}              ${C_GOLD}CONFIGURATION GUIDE${C_RESET}                   ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+echo -e "  ${C_SAGE}${ICON_ARROW} How to get Bot Token & ID:${C_RESET}"
+echo -e "    ${C_GOLD}1.${C_RESET} Create Bot    : ${C_CREAM}@BotFather${C_RESET}"
+echo -e "    ${C_GOLD}2.${C_RESET} Get Telegram ID : ${C_CREAM}@MissRose_bot${C_RESET} (/info)"
+echo -e "${C_BURGUNDY}  ------------------------------------------------------${C_RESET}"
+echo -e ""
+
+# Input Section
+echo -e "  ${C_GOLD}[?] Input your Bot Token :${C_RESET}"
+read -p "      > " -e bottoken
+echo -e ""
+echo -e "  ${C_GOLD}[?] Input your Telegram Admin ID :${C_RESET}"
+read -p "      > " -e admin
+
+# Processing Logic
+echo -e ""
+echo -e "  ${C_SAGE}${ICON_GEAR} Processing database...${C_RESET}"
+sleep 1
+
+# Hapus token lama jika ada (update/replace)
+if grep -q "${bottoken}" /etc/bot/.bot.db; then
+    sed -i "/${bottoken}/d" /etc/bot/.bot.db
+fi
+
+# Masukkan data baru
+echo "#bot# ${bottoken} ${admin}" >> /etc/bot/.bot.db
+
+# Success Display
+clear
+draw_header
+print_success_box "$bottoken" "$admin"
+
+# Footer / Back to Menu
+echo -e "  ${C_GOLD}${ICON_ARROW} Press ${C_SAGE}[ENTER]${C_GOLD} to return to main menu...${C_RESET}"
+read -n 1 -s -r
+menu

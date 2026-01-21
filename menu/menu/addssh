@@ -1,0 +1,251 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - SSH & ZIVPN CREATOR
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_STAR="✨"
+ICON_USER="👤"
+ICON_LOCK="🔒"
+ICON_GLOBE="🌐"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_GEAR="⚙"
+ICON_ROCKET="🚀"
+
+# --- CONFIG ZIVPN ---
+ZIVPN_CONFIG="/etc/zivpn/config.json"
+ZIVPN_DB="/etc/zivpn/user-db.json"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO SSH & ZIVPN${C_RESET} ${C_GOLD}(PREMIUM)${C_RESET}               ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# Ensure JQ is installed for ZIVPN
+if ! command -v jq &> /dev/null; then
+    echo -e "${C_TOMATO}Error: jq is not installed. Installing...${C_RESET}"
+    apt-get install jq -y >/dev/null 2>&1
+fi
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+# Load Info
+MYIP=$(curl -sS ipv4.icanhazip.com)
+ISP=$(cat /root/.info/.isp 2>/dev/null)
+CITY=$(cat /root/.info/.city 2>/dev/null)
+domain=$(cat /etc/xray/domain 2>/dev/null)
+PUB=$(cat /etc/slowdns/server.pub 2>/dev/null)
+NS=$(cat /etc/xray/dns 2>/dev/null)
+
+# Input Loop
+while true; do
+    draw_header
+    echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+    echo -e "${C_BURGUNDY}  |${C_RESET}                 ${C_GOLD}CREATE NEW ACCOUNT${C_RESET}                 ${C_BURGUNDY}|${C_RESET}"
+    echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+    echo -e ""
+    
+    echo -e "  ${C_GOLD}[?] Username :${C_RESET}"
+    read -p "      > " Login
+    
+    if [[ -z "$Login" ]]; then
+        echo -e "  ${C_TOMATO}${ICON_CROSS} Error: Username cannot be empty.${C_RESET}"
+        sleep 1
+        continue
+    fi
+    # Check if user exists
+    if id "$Login" &>/dev/null; then
+        echo -e "  ${C_TOMATO}${ICON_CROSS} Error: User '$Login' already exists.${C_RESET}"
+        sleep 1
+        continue
+    fi
+    
+    break
+done
+
+echo -e "  ${C_GOLD}[?] Password :${C_RESET}"
+read -p "      > " Pass
+echo -e "  ${C_GOLD}[?] IP Limit (0 for unlimited) :${C_RESET}"
+read -p "      > " iplimit
+echo -e "  ${C_GOLD}[?] Quota Limit (GB) :${C_RESET}"
+read -p "      > " Quota
+echo -e "  ${C_GOLD}[?] Expired (Days) :${C_RESET}"
+read -p "      > " masaaktif
+
+# --- PROCESSING SSH ---
+print_status "Creating System User"
+
+# Date Calculation
+tgl=$(date -d "$masaaktif days" +"%d")
+bln=$(date -d "$masaaktif days" +"%b")
+thn=$(date -d "$masaaktif days" +"%Y")
+expe="$tgl $bln, $thn"
+tgl2=$(date +"%d")
+bln2=$(date +"%b")
+thn2=$(date +"%Y")
+tnggl="$tgl2 $bln2, $thn2"
+exp_date_iso=$(date -d "$masaaktif days" +"%Y-%m-%d")
+
+# IP Limit
+if [[ $iplimit -gt 0 ]]; then
+    mkdir -p /etc/kyt/limit/ssh/ip
+    echo -e "$iplimit" > /etc/kyt/limit/ssh/ip/$Login
+fi
+
+# Create User
+useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $Login
+echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
+
+# Quota Logic
+if [ -z ${Quota} ]; then Quota="0"; fi
+c=$(echo "${Quota}" | sed 's/[^0-9]*//g')
+d=$((${c} * 1024 * 1024 * 1024))
+if [[ ${c} != "0" ]]; then
+    mkdir -p /etc/ssh
+    echo "${d}" >/etc/ssh/${Login}
+fi
+
+# Update SSH DB
+if [ -f /etc/ssh/.ssh.db ]; then
+    sed -i "/\b${Login}\b/d" /etc/ssh/.ssh.db
+fi
+echo "#ssh# ${Login} ${Pass} ${Quota} ${iplimit} ${expe}" >>/etc/ssh/.ssh.db
+
+# --- PROCESSING ZIVPN ---
+print_status "Configuring ZIVPN Integration"
+
+if [ -f "$ZIVPN_CONFIG" ]; then
+    cp "$ZIVPN_CONFIG" "${ZIVPN_CONFIG}.bak"
+    
+    # Add to Auth Config
+    if ! jq -e ".auth.config | index(\"$Login\")" "$ZIVPN_CONFIG" > /dev/null; then
+         jq --arg user "$Login" '.auth.config += [$user]' "$ZIVPN_CONFIG" > "${ZIVPN_CONFIG}.tmp" && mv "${ZIVPN_CONFIG}.tmp" "$ZIVPN_CONFIG"
+    fi
+
+    # Update DB Metadata
+    if [ ! -f "$ZIVPN_DB" ]; then echo "{}" > "$ZIVPN_DB"; fi
+    jq --arg u "$Login" --arg e "$exp_date_iso" --arg i "$iplimit" --arg q "$Quota" \
+       '.[$u] = {exp: $e, ip: $i, quota: $q}' "$ZIVPN_DB" > "${ZIVPN_DB}.tmp" && mv "${ZIVPN_DB}.tmp" "$ZIVPN_DB"
+
+    systemctl restart zivpn
+fi
+
+# ==========================================================
+#  NOTIFICATIONS
+# ==========================================================
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+
+# Generate File
+cat > /var/www/html/ssh-$Login.txt <<-END
+◇━━━━━━━━━━━━━━━━━◇
+Format SSH & ZIVPN Account
+◇━━━━━━━━━━━━━━━━━◇
+Username         : $Login
+Password         : $Pass
+ZIVPN Token      : $Login
+◇━━━━━━━━━━━━━━━━━◇
+IP               : $MYIP
+Host             : $domain
+Port OpenSSH     : 443, 80, 22
+Port Dropbear    : 443, 109
+Port SSH WS      : 80, 8080
+Port SSH SSL WS  : 443
+Port ZIVPN UDP   : 5667 (All Port)
+◇━━━━━━━━━━━━━━━━━◇
+Aktif Selama     : $masaaktif Hari
+Dibuat Pada      : $tnggl
+Berakhir Pada    : $expe
+◇━━━━━━━━━━━━━━━━━◇
+Payload WSS: GET wss://BUG.COM/ HTTP/1.1[crlf]Host: $domain[crlf]Upgrade: websocket[crlf][crlf] 
+◇━━━━━━━━━━━━━━━━━◇
+OVPN Download : https://$domain:81/
+◇━━━━━━━━━━━━━━━━━◇
+END
+
+# Send Telegram
+if [[ ! -z "$CHATID" && ! -z "$KEY" ]]; then
+TEXT="
+<code>◇━━━━━━━━━━━━━━━━━━━━━━◇</code>
+<b>  🍅 SSH & ZIVPN CREATED 🍅</b>
+<code>◇━━━━━━━━━━━━━━━━━━━━━━◇</code>
+<b>Username    :</b> <code>$Login</code>
+<b>Password    :</b> <code>$Pass</code>
+<b>ZIVPN Token :</b> <code>$Login</code>
+<b>Limit IP    :</b> <code>$iplimit</code>
+<code>◇━━━━━━━━━━━━━━━━━━━━━━◇</code>
+<b>Host        :</b> <code>$domain</code>
+<b>Quota       :</b> <code>${Quota} GB</code>
+<b>Pub Key     :</b> <code>$PUB</code>
+<code>◇━━━━━━━━━━━━━━━━━━━━━━◇</code>
+<b>SSH SSL     :</b> <code>$domain:443@${Login}:${Pass}</code>
+<b>SSH UDP     :</b> <code>$domain:1-65535@${Login}:${Pass}</code>
+<b>ZIVPN UDP   :</b> <code>5667</code>
+<code>◇━━━━━━━━━━━━━━━━━━━━━━◇</code>
+<b>Payload WS  :</b> <code>GET / HTTP/1.1[crlf]host: $domain[crlf]Upgrade: Websocket[crlf][crlf]</code>
+<code>◇━━━━━━━━━━━━━━━━━━━━━━◇</code>
+<b>Expired     :</b> <code>$expe</code>
+<code>◇━━━━━━━━━━━━━━━━━━━━━━◇</code>
+"
+curl -s --max-time 10 -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+fi
+
+# ==========================================================
+#  FINAL OUTPUT
+# ==========================================================
+# Log internal
+echo -e "User: $Login | Exp: $expe | Q: ${Quota}GB" >> /etc/user-create/user.log
+
+clear
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}    ${C_TOMATO}ACCOUNT CREATED SUCCESSFULLY${C_RESET}     ${C_SAGE}${ICON_ROCKET}${C_RESET}        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+# Details
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$Login"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Password" "$Pass"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Expired" "$expe"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Quota" "${Quota} GB"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "IP Limit" "$iplimit Device"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+# Ports
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_GEAR} PORTS CONFIGURATION${C_RESET}                                ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}OpenSSH: 22, 80, 443 | Dropbear: 109, 443${C_RESET}          ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}SSH WS : 80, 8080    | SSL WS: 443${C_RESET}                 ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}ZIVPN  : 5667        | OVPN: 1194, 2200${C_RESET}            ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+# Payload
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_GLOBE} PAYLOAD WEBSOCKET${C_RESET}                                  ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}GET / HTTP/1.1[crlf]host: $domain[crlf]Upgrade: Websocket${C_RESET}  ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+read -n 1 -s -r -p "Press any key to back on menu"
+menu

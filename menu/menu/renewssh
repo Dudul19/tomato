@@ -1,0 +1,162 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - RENEW SSH
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_SSH="🚀"
+ICON_RENEW="🔄"
+ICON_USER="👤"
+ICON_CAL="📅"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_LOCK="🔒"
+ICON_UNLOCK="🔓"
+ICON_STAR="✨"
+ICON_GEAR="⚙"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(RENEW SSH USER)${C_RESET}           ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# 1. List Users
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}REGISTERED USERS${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_GOLD}%-15s${C_RESET} ${C_SAGE}%-12s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "USERNAME" "EXPIRY" "STATUS"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+total_users=0
+while IFS=: read -r username _ uid _ _ _ _; do
+    if [[ $uid -ge 1000 && "$username" != "nobody" ]]; then
+        # Ambil tanggal expired
+        exp_raw=$(chage -l "$username" | grep "Account expires" | cut -d: -f2 | sed 's/^[ \t]*//')
+        
+        # Cek Status
+        status_check=$(passwd -S "$username" | awk '{print $2}')
+        if [[ "$status_check" == "L" ]]; then
+            status_text="${C_TOMATO}LOCKED${C_RESET}"
+        else
+            status_text="${C_SAGE}ACTIVE${C_RESET}"
+        fi
+
+        # Format Tanggal
+        if [[ "$exp_raw" == "never" ]]; then
+            exp_display="Lifetime"
+        else
+            exp_display=$(date -d "$exp_raw" "+%d-%b-%Y" 2>/dev/null || echo "Unknown")
+        fi
+
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_CREAM}%-15s${C_RESET} %-20s ${C_BURGUNDY}║${C_RESET}\n" "${username}" "${exp_display}" "${status_text}"
+        ((total_users++))
+    fi
+done < /etc/passwd
+
+if [[ $total_users -eq 0 ]]; then
+    printf "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}%-48s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "             No SSH users found"
+fi
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+echo -e ""
+
+# 2. Input Data
+read -p "  ${ICON_USER} Select Username : " user
+if [[ -z "$user" ]]; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Cancelled.${C_RESET}"
+    menu
+    exit 0
+fi
+
+# Validasi User
+if ! getent passwd "$user" > /dev/null 2>&1; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Error: User '$user' not found!${C_RESET}"
+    sleep 2
+    menu
+    exit 0
+fi
+
+read -p "  ${ICON_CAL} Add Duration (Days) : " days
+if [[ ! "$days" =~ ^[0-9]+$ ]]; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Error: Please enter a valid number.${C_RESET}"
+    sleep 2
+    menu
+    exit 0
+fi
+
+# 3. Processing (Smart Logic)
+print_status "Calculating New Expiry"
+
+# Ambil Current Expiry
+current_exp_str=$(chage -l "$user" | grep "Account expires" | cut -d: -f2 | sed 's/^[ \t]*//')
+now_secs=$(date +%s)
+
+# Tentukan Base Date (Apakah dari Hari Ini atau dari Sisa Hari)
+if [[ "$current_exp_str" == "never" || -z "$current_exp_str" ]]; then
+    # Jika Lifetime atau Error, mulai dari hari ini
+    base_secs=$now_secs
+else
+    exp_secs=$(date -d "$current_exp_str" +%s)
+    if [[ $exp_secs -gt $now_secs ]]; then
+        # Jika belum expired, tambah dari tanggal expired (Akumulasi)
+        base_secs=$exp_secs
+    else
+        # Jika sudah expired, tambah dari hari ini
+        base_secs=$now_secs
+    fi
+fi
+
+# Hitung Tanggal Baru
+add_secs=$((days * 86400))
+new_exp_secs=$((base_secs + add_secs))
+new_exp_date=$(date -d "@$new_exp_secs" +"%Y-%m-%d")
+display_new_date=$(date -d "$new_exp_date" "+%d %b %Y")
+
+# Eksekusi Perpanjangan
+usermod -e "$new_exp_date" "$user"
+# Pastikan akun di-unlock jika sebelumnya terkunci karena expired
+passwd -u "$user" > /dev/null 2>&1 
+
+# 4. Success Output
+clear
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}SSH ACCOUNT RENEWED${C_RESET}         ${C_SAGE}${ICON_RENEW}${C_RESET}        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$user"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Added Days" "+$days Days"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "New Expiry" "$display_new_date"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Status" "Active / Unlocked"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

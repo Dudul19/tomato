@@ -1,0 +1,201 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - TRIAL TROJAN
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_TR="🐴"
+ICON_KEY="🔑"
+ICON_TIME="⏳"
+ICON_USER="👤"
+ICON_NET="🌐"
+ICON_CHECK="✔"
+ICON_LINK="🔗"
+ICON_STAR="✨"
+
+# ==========================================================
+#  PERMISSION CHECK
+# ==========================================================
+IPVPES="https://raw.githubusercontent.com/dudul19/tomato/main/izin"
+
+function checking_sc() {
+    ipsaya=$(curl -sS ipv4.icanhazip.com)
+    data_server=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+    date_list=$(date +"%Y-%m-%d" -d "$data_server")
+    
+    useexp=$(wget -qO- $IPVPES | grep $ipsaya | awk '{print $3}')
+    
+    if [[ "$date_list" < "$useexp" ]]; then
+        return 0
+    else
+        clear
+        echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET}              ${C_TOMATO}🚫 ACCESS DENIED 🚫${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}Your VPS IP has been banned or not registered!${C_RESET}       ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+        exit 1
+    fi
+}
+checking_sc
+
+# ==========================================================
+#  UI FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(TRIAL TROJAN)${C_RESET}           ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_TIME} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# 1. Input Timer
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}               ${C_GOLD}CREATE TRIAL ACCOUNT${C_RESET}                   ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+
+echo -e "  ${C_CREAM}Enter validity time in minutes.${C_RESET}"
+read -p "  ${ICON_TIME} Minutes (Default 60): " timer
+if [[ -z "$timer" ]]; then timer=60; fi
+
+# 2. Variable Generation
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "No Domain")
+user="TrialTR-$(head /dev/urandom | tr -dc 0-9 | head -c 4)"
+uuid=$(cat /proc/sys/kernel/random/uuid)
+masaaktif=1
+Quota=1
+iplimit=10
+
+# 3. Xray Config Modification
+print_status "Injecting Xray Configuration"
+exp=$(date -d "$masaaktif days" +"%Y-%m-%d")
+
+# Inject Trojan WS
+sed -i '/#trojanws$/a\#! '"$user $exp"'\
+},{"password": "'""$uuid""'","email": "'""$user""'"' /etc/xray/config.json
+
+# Inject Trojan gRPC
+sed -i '/#trojangrpc$/a\#! '"$user $exp"'\
+},{"password": "'""$uuid""'","email": "'""$user""'"' /etc/xray/config.json
+
+# 4. Generate Links
+print_status "Generating Connection Links"
+link_ws="trojan://${uuid}@${domain}:443?path=%2Ftrojan-ws&security=tls&host=${domain}&type=ws&sni=${domain}#${user}"
+link_grpc="trojan://${uuid}@${domain}:443?mode=gun&security=tls&type=grpc&serviceName=trojan-grpc&sni=${domain}#${user}"
+
+# 5. Clash Config (Web Download)
+print_status "Creating Clash Configuration"
+mkdir -p /var/www/html
+cat > /var/www/html/trojan-$user.txt <<-END
+# ----------------------------------
+# TROJAN TRIAL ACCOUNT
+# ----------------------------------
+#
+- name: Trojan-$user-WS
+  server: ${domain}
+  port: 443
+  type: trojan
+  password: ${uuid}
+  network: ws
+  sni: ${domain}
+  skip-cert-verify: true
+  udp: true
+  ws-opts:
+    path: /trojan-ws
+    headers:
+        Host: ${domain}
+
+- name: Trojan-$user-gRPC
+  type: trojan
+  server: ${domain}
+  port: 443
+  password: ${uuid}
+  udp: true
+  sni: ${domain}
+  skip-cert-verify: true
+  network: grpc
+  grpc-opts:
+    grpc-service-name: trojan-grpc
+END
+
+# 6. Database & Quota
+print_status "Updating Database & Limits"
+
+# Set IP Limit
+mkdir -p /etc/kyt/limit/trojan/ip
+echo -e "$iplimit" > /etc/kyt/limit/trojan/ip/$user
+
+# Set Quota (GB -> Bytes)
+if [[ ! -d /etc/trojan ]]; then mkdir -p /etc/trojan; fi
+bytes=$((Quota * 1024 * 1024 * 1024))
+echo "${bytes}" > /etc/trojan/${user}
+
+# Update DB
+sed -i "/\b${user}\b/d" /etc/trojan/.trojan.db 2>/dev/null
+echo "### ${user} ${exp} ${uuid} ${Quota} ${iplimit}" >> /etc/trojan/.trojan.db
+
+# 7. Service Restart & Auto Kill
+print_status "Restarting Xray Service"
+systemctl restart xray > /dev/null 2>&1
+service cron restart > /dev/null 2>&1
+
+# Auto Kill with 'at' command (Require 'at' package installed)
+if command -v at &> /dev/null; then
+    # Script penghapus user sementara
+    echo "sed -i \"/'$user'/d\" /etc/xray/config.json && systemctl restart xray" | at now + $timer minutes > /dev/null 2>&1
+fi
+
+# 8. Final Output
+clear
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}TRIAL CREATED SUCCESSFULLY${C_RESET}       ${C_SAGE}${ICON_TR}${C_RESET}          ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}ACCOUNT DETAILS${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$user"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Key/UUID" "$uuid"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Expired In" "$timer Minutes"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Quota" "$Quota GB"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Path WS" "/trojan-ws"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}CONNECTION LINKS${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_LINK} LINK WS:${C_RESET}                                          ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}${link_ws:0:50}...${C_RESET}                            ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_LINK} LINK GRPC:${C_RESET}                                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}${link_grpc:0:50}...${C_RESET}                          ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_LINK} Clash Config:${C_RESET} ${C_SAGE}http://$domain:81/trojan-$user.txt${C_RESET}    ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+echo -e "  ${C_SAGE}${ICON_CHECK} Auto-delete scheduled in $timer minutes.${C_RESET}"
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

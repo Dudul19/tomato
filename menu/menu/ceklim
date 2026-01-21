@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - LIMIT LOG VIEWER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_SHIELD="🛡️"
+ICON_LIST="📜"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_WARN="⚠️"
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+clear
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO LIMIT LOGS${C_RESET} ${C_GOLD}(MULTI-LOGIN)${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# Cek apakah file ada DAN memiliki isi (size > 0)
+if [[ -s "/root/log-limit.txt" ]]; then
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}${ICON_WARN}  USERS VIOLATING MAXIMUM LIMIT DETECTED${C_RESET}           ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}Time                Username          Count${C_RESET}            ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    
+    # Loop untuk membaca file dan menampilkannya dengan format rapi di dalam box
+    while IFS= read -r line; do
+        # Format output agar tetap rapi (memotong jika terlalu panjang)
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-48s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "${line:0:48}"
+    done < /root/log-limit.txt
+
+else
+    # Jika file tidak ada atau kosong
+    echo -e "${C_BURGUNDY}║${C_RESET}                                                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}      ${C_SAGE}${ICON_CHECK}  NO VIOLATIONS DETECTED TODAY  ${ICON_CHECK}${C_RESET}          ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}                                                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}Possible reasons:${C_RESET}                                    ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}•${C_RESET} ${C_CREAM}No user exceeded the multilogin limit.${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}•${C_RESET} ${C_CREAM}AutoKill script has not been executed yet.${C_RESET}         ${C_BURGUNDY}║${C_RESET}"
+fi
+
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

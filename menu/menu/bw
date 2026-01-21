@@ -1,0 +1,144 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - BANDWIDTH MONITOR
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_CHART="📊"
+ICON_STAR="✨"
+ICON_CLOCK="⏰"
+ICON_CAL="📅"
+ICON_LIVE="🔴"
+ICON_ARROW="➜"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+# Check Dependency
+if ! command -v vnstat &> /dev/null; then
+    echo -e "${C_TOMATO}Error: vnstat is not installed.${C_RESET}"
+    exit 1
+fi
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO BANDWIDTH${C_RESET} ${C_GOLD}(VNSTAT MONITOR)${C_RESET}          ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# Fungsi wrapper untuk menampilkan output vnstat dengan rapi
+show_stat() {
+    local title="$1"
+    local command="$2"
+    
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHART}  ${C_TOMATO}${title}${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+    
+    # Menjalankan perintah vnstat
+    $command
+    
+    echo -e ""
+    echo -e "${C_BURGUNDY}──────────────────────────────────────────────────────${C_RESET}"
+    echo -e "${C_GOLD}${ICON_ARROW} Press any key to return to menu...${C_RESET}"
+    read -n 1 -s -r
+    bw
+}
+
+# ==========================================================
+#  MAIN MENU
+# ==========================================================
+
+draw_header
+
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}                  ${C_GOLD}SELECT MONITOR${C_RESET}                    ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+echo -e ""
+
+# Menu Options
+echo -e "  ${C_GOLD}[01]${C_RESET} ${C_CREAM}Total Bandwidth Summary${C_RESET}"
+echo -e "  ${C_GOLD}[02]${C_RESET} ${C_CREAM}Five Minute Interval${C_RESET}"
+echo -e "  ${C_GOLD}[03]${C_RESET} ${C_CREAM}Hourly Usage${C_RESET}"
+echo -e "  ${C_GOLD}[04]${C_RESET} ${C_CREAM}Daily Usage${C_RESET}"
+echo -e "  ${C_GOLD}[05]${C_RESET} ${C_CREAM}Monthly Usage${C_RESET}"
+echo -e "  ${C_GOLD}[06]${C_RESET} ${C_CREAM}Yearly Usage${C_RESET}"
+echo -e "  ${C_GOLD}[07]${C_RESET} ${C_CREAM}Top Usage Days${C_RESET}"
+echo -e "  ${C_GOLD}[08]${C_RESET} ${C_CREAM}Hourly Graph Statistics${C_RESET}"
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e "  ${C_GOLD}[09]${C_RESET} ${C_TOMATO}${ICON_LIVE} Live Monitor (Realtime)${C_RESET}"
+echo -e "  ${C_GOLD}[10]${C_RESET} ${C_TOMATO}${ICON_LIVE} Live Traffic (5s Sample)${C_RESET}"
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e "  ${C_GOLD}[00]${C_RESET} Back to Menu"
+echo -e ""
+
+# Input
+echo -e "  ${C_GOLD}${ICON_ARROW} Select Option :${C_RESET}"
+read -p "      > " opt
+
+case $opt in
+    1|01)
+        show_stat "TOTAL BANDWIDTH SUMMARY" "vnstat"
+        ;;
+    2|02)
+        show_stat "FIVE MINUTE INTERVAL" "vnstat -5"
+        ;;
+    3|03)
+        show_stat "HOURLY USAGE STATISTICS" "vnstat -h"
+        ;;
+    4|04)
+        show_stat "DAILY USAGE STATISTICS" "vnstat -d"
+        ;;
+    5|05)
+        show_stat "MONTHLY USAGE STATISTICS" "vnstat -m"
+        ;;
+    6|06)
+        show_stat "YEARLY USAGE STATISTICS" "vnstat -y"
+        ;;
+    7|07)
+        show_stat "TOP BANDWIDTH USAGE" "vnstat -t"
+        ;;
+    8|08)
+        show_stat "HOURLY GRAPH" "vnstat -hg"
+        ;;
+    9|09)
+        clear
+        echo -e "${C_TOMATO}${ICON_LIVE} LIVE MONITORING ${C_SAGE}(Press CTRL+C to Exit)${C_RESET}"
+        echo -e ""
+        vnstat -l
+        bw
+        ;;
+    10)
+        show_stat "TRAFFIC RATE (5s Average)" "vnstat -tr"
+        ;;
+    0|00)
+        menu
+        ;;
+    x)
+        exit
+        ;;
+    *)
+        echo -e "  ${C_TOMATO}${ICON_CROSS} Invalid Option!${C_RESET}"
+        sleep 1
+        bw
+        ;;
+esac

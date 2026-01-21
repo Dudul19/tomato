@@ -1,0 +1,123 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - TROJAN MONITOR
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_USER="👤"
+ICON_ON="🟢"
+ICON_OFF="🔴"
+ICON_STATS="📊"
+ICON_STAR="✨"
+ICON_TIME="🕒"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+# Fungsi Konversi Byte ke Human Readable
+function con() {
+    local -i bytes=$1;
+    if [[ $bytes -lt 1024 ]]; then
+        echo "${bytes} B"
+    elif [[ $bytes -lt 1048576 ]]; then
+        echo "$(( (bytes + 1023)/1024 )) KB"
+    elif [[ $bytes -lt 1073741824 ]]; then
+        echo "$(( (bytes + 1048575)/1048576 )) MB"
+    else
+        echo "$(( (bytes + 1073741823)/1073741824 )) GB"
+    fi
+}
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MONITOR${C_RESET} ${C_GOLD}(TROJAN ACCOUNTS)${C_RESET}            ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# Ambil data user (Format di config: #! username exp)
+data=($(grep '^#!' /etc/xray/config.json | cut -d ' ' -f 2 | sort | uniq))
+
+# Cache log file untuk mempercepat proses (Ambil 1000 baris terakhir)
+LOG_CONTENT=$(tail -n 1000 /var/log/xray/access.log)
+
+total_users=${#data[@]}
+
+if [[ $total_users -eq 0 ]]; then
+    echo -e "  ${C_TOMATO}No Trojan accounts found.${C_RESET}"
+else
+    echo -e "  ${C_SAGE}${ICON_STATS} Total Accounts: ${C_GOLD}$total_users${C_RESET}"
+    echo -e ""
+
+    for akun in "${data[@]}"; do
+        # --- AMBIL INFO LIMIT & KUOTA ---
+        # Menggunakan /etc/kyt agar konsisten dengan script create
+        iplimit=$(cat /etc/kyt/limit/trojan/ip/${akun} 2>/dev/null || echo "0")
+        
+        byte_usage=$(cat /etc/trojan/${akun} 2>/dev/null || echo "0")
+        gb_usage=$(con ${byte_usage})
+        
+        byte_limit=$(cat /etc/limit/trojan/${akun} 2>/dev/null || echo "0")
+        gb_limit=$(con ${byte_limit})
+
+        # --- CEK LOGIN ---
+        # Filter log dari variabel cache
+        user_log_entries=$(echo "$LOG_CONTENT" | grep -w "$akun")
+        
+        # Hitung IP Login
+        if [[ -n "$user_log_entries" ]]; then
+            ip_login_count=$(echo "$user_log_entries" | cut -d " " -f 3 | sed 's/tcp://g' | cut -d ":" -f 1 | sort | uniq | wc -l)
+            last_login=$(echo "$user_log_entries" | tail -1 | awk '{print $2}')
+        else
+            ip_login_count=0
+            last_login="-"
+        fi
+
+        # --- STATUS ---
+        if [[ $ip_login_count -gt 0 ]]; then
+            status="${C_SAGE}Online ${ICON_ON}${C_RESET}"
+            ip_display="${C_SAGE}${ip_login_count}${C_RESET}"
+        else
+            status="${C_TOMATO}Offline ${ICON_OFF}${C_RESET}"
+            ip_display="${C_TOMATO}0${C_RESET}"
+        fi
+
+        # --- TAMPILAN BOX USER ---
+        echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-36s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$akun"
+        echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : %-36s ${C_BURGUNDY}║${C_RESET}\n" "Status" "$status"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : ${C_GOLD}%-36s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "IP Limit" "$iplimit Device(s)"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : ${C_SAGE}%-36s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "IP Login" "$ip_display Device(s)"
+        echo -e "${C_BURGUNDY}╟──────────────────────────────────────────────────────╢${C_RESET}"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : %-36s ${C_BURGUNDY}║${C_RESET}\n" "Quota Used" "$gb_usage"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : %-36s ${C_BURGUNDY}║${C_RESET}\n" "Last Login" "$last_login"
+        echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+        echo -e ""
+    done
+fi
+
+echo -e "${C_GOLD}${ICON_STAR} Monitor Completed.${C_RESET}"
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

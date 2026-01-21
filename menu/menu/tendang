@@ -1,0 +1,107 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - CONNECTION LIMITER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_SEC="🛡️"
+ICON_USER="👤"
+ICON_KILL="💀"
+ICON_CHECK="✔"
+ICON_WARN="⚠️"
+ICON_STAR="✨"
+
+# 3. Setup Limit
+# Jika ada argumen (contoh: ./limit 2), gunakan itu. Jika tidak, default 1.
+MAX_LIMIT=${1:-1}
+
+# ==========================================================
+#  UI FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO SECURITY${C_RESET} ${C_GOLD}(AUTO LIMITER)${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_SEC} MAX SESSION : ${C_CREAM}${MAX_LIMIT} Device(s)${C_RESET}                 ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_scan() {
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}SCANNING SESSIONS${C_RESET}                    ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} ${C_GOLD}%-10s${C_RESET} ${C_SAGE}%-21s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "USERNAME" "COUNT" "STATUS"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+print_scan
+
+# File Log
+LOG_FILE="/root/log-limit.txt"
+if [[ ! -f "$LOG_FILE" ]]; then touch "$LOG_FILE"; fi
+
+# Loop User (UID >= 1000)
+while IFS=: read -r username _ uid _ _ _ _; do
+    if [[ $uid -ge 1000 && "$username" != "nobody" ]]; then
+        
+        # Hitung Proses (SSHD + Dropbear)
+        # Menggunakan pgrep -u untuk akurasi
+        count_ssh=$(pgrep -u "$username" sshd | wc -l)
+        count_drop=$(pgrep -u "$username" dropbear | wc -l)
+        total_conn=$((count_ssh + count_drop))
+
+        if [[ $total_conn -gt $MAX_LIMIT ]]; then
+            # STATUS: OVERLIMIT
+            printf "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}%-15s${C_RESET} ${C_TOMATO}%-10s${C_RESET} ${C_TOMATO}%-21s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "$username" "$total_conn" "OVERLIMIT ${ICON_KILL}"
+            
+            # Action: Kill Excess PID
+            # Ambil semua PID user tersebut
+            PIDS=$(pgrep -u "$username" -x "sshd" ; pgrep -u "$username" -x "dropbear")
+            
+            # Log
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - User: $username - Count: $total_conn - Action: Killed" >> "$LOG_FILE"
+            
+            # Kill Process (Loop PID)
+            for pid in $PIDS; do
+                kill -9 "$pid" > /dev/null 2>&1
+            done
+            
+        elif [[ $total_conn -gt 0 ]]; then
+            # STATUS: ONLINE (SAFE)
+            printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} ${C_SAGE}%-10s${C_RESET} ${C_SAGE}%-21s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "$username" "$total_conn" "SAFE ${ICON_CHECK}"
+        fi
+
+    fi
+done < /etc/passwd
+
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+echo -e "  ${C_SAGE}${ICON_CHECK} Scan Completed.${C_RESET}"
+echo -e "  ${C_GOLD}${ICON_WARN} Activity logged in ${C_CREAM}/root/log-limit.txt${C_RESET}"
+echo -e ""
+
+# Jika dijalankan manual, beri pause. Jika cronjob, skip.
+if [ -t 0 ]; then
+    read -n 1 -s -r -p "Press any key to return..."
+    menu
+fi

@@ -1,0 +1,163 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - RENEW VMESS
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_VMESS="💠"
+ICON_RENEW="🔄"
+ICON_USER="👤"
+ICON_CAL="📅"
+ICON_QUOTA="📦"
+ICON_NET="🌐"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_STAR="✨"
+ICON_GEAR="⚙"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(RENEW VMESS)${C_RESET}              ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# 1. Check Clients
+# Menggunakan regex ### sesuai script asli untuk VMESS
+NUMBER_OF_CLIENTS=$(grep -c -E "^### " "/etc/xray/config.json")
+
+if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
+    echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+    echo -e "${C_BURGUNDY}  |${C_RESET}                 ${C_GOLD}NO USERS FOUND${C_RESET}                       ${C_BURGUNDY}|${C_RESET}"
+    echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+    echo -e "  ${C_TOMATO}${ICON_CROSS} You have no existing VMess clients.${C_RESET}"
+    echo -e ""
+    read -n 1 -s -r -p "Press any key to return..."
+    menu
+    exit 0
+fi
+
+# 2. List Clients
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}REGISTERED USERS${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-22s${C_RESET} ${C_GOLD}%-27s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "USERNAME" "EXPIRED DATE"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+grep -E "^### " "/etc/xray/config.json" | while read -r line; do
+    user=$(echo "$line" | cut -d ' ' -f 2)
+    exp=$(echo "$line" | cut -d ' ' -f 3)
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-22s${C_RESET} ${C_SAGE}%-27s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "$user" "$exp"
+done
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+echo -e ""
+
+# 3. Input Data
+read -p "  ${ICON_USER} Select Username : " user
+if [[ -z "$user" ]]; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Cancelled.${C_RESET}"
+    menu
+    exit 0
+fi
+
+# Validasi User Exists
+if ! grep -q "^### $user" "/etc/xray/config.json"; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Error: User '$user' not found!${C_RESET}"
+    sleep 2
+    menu
+    exit 0
+fi
+
+read -p "  ${ICON_CAL} Add Duration (Days) : " masaaktif
+read -p "  ${ICON_QUOTA} Update Quota (GB)   : " Quota
+read -p "  ${ICON_NET} Update IP Limit     : " iplim
+
+# Default Value
+if [[ -z "$masaaktif" ]]; then masaaktif="0"; fi
+if [[ -z "$Quota" ]]; then Quota="0"; fi
+if [[ -z "$iplim" ]]; then iplim="0"; fi
+
+# 4. Processing
+print_status "Updating Account Limits"
+
+# Hapus Limit Lama
+rm -f /etc/kyt/limit/vmess/ip/${user}
+rm -f /etc/vmess/$user
+
+# Buat Folder jika belum ada
+mkdir -p /etc/kyt/limit/vmess/ip
+mkdir -p /etc/vmess
+
+# Set Limit IP
+echo "${iplim}" > /etc/kyt/limit/vmess/ip/${user}
+
+# Set Quota (GB -> Bytes)
+c=$(echo "${Quota}" | sed 's/[^0-9]*//g')
+d=$((${c} * 1024 * 1024 * 1024))
+
+if [[ ${c} != "0" ]]; then
+    echo "${d}" > /etc/vmess/${user}
+fi
+
+print_status "Calculating New Expiry"
+
+# Ambil Expired Lama
+exp_old=$(grep -wE "^### $user" "/etc/xray/config.json" | cut -d ' ' -f 3 | sort | uniq | head -n 1)
+
+# Hitung Expired Baru (Current Exp + New Days)
+exp_new=$(date -d "$exp_old + $masaaktif days" +"%Y-%m-%d")
+
+# Update Config Xray
+sed -i "/### $user/c\### $user $exp_new" /etc/xray/config.json
+
+# Update Backup Config (Jika ada)
+if [[ -f "/etc/vmess/.vmess.db" ]]; then
+    sed -i "/### $user/c\### $user $exp_new" /etc/vmess/.vmess.db
+fi
+
+print_status "Restarting Xray Service"
+systemctl restart xray > /dev/null 2>&1
+
+# 5. Success Output
+clear
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}ACCOUNT RENEWED SUCCESSFULLY${C_RESET}       ${C_SAGE}${ICON_RENEW}${C_RESET}        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$user"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Added Days" "+$masaaktif Days"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "New Expiry" "$exp_new"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Limit IP" "$iplim Device(s)"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Quota" "$Quota GB"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

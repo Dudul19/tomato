@@ -1,0 +1,118 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - UNLOCK USER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_LOCK="🔒"
+ICON_UNLOCK="🔓"
+ICON_USER="👤"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_STAR="✨"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(UNLOCK USER)${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# 1. List Users
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}REGISTERED USERS${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_GOLD}%-15s${C_RESET} ${C_SAGE}%-12s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "USERNAME" "EXPIRY" "STATUS"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+count=0
+while IFS=: read -r username _ uid _ _ _ _; do
+    if [[ $uid -ge 1000 && "$username" != "nobody" ]]; then
+        # Ambil Status Lock
+        status_code=$(passwd -S "$username" | awk '{print $2}')
+        
+        if [[ "$status_code" == "L" ]]; then
+            status_display="${C_TOMATO}LOCKED ${ICON_LOCK}${C_RESET}"
+        else
+            status_display="${C_SAGE}ACTIVE ${ICON_CHECK}${C_RESET}"
+        fi
+
+        # Ambil Tanggal Expired
+        exp_raw=$(chage -l "$username" | grep "Account expires" | cut -d: -f2 | sed 's/^[ \t]*//')
+        if [[ "$exp_raw" == "never" ]]; then
+            exp_display="Lifetime"
+        else
+            exp_display=$(date -d "$exp_raw" "+%d-%b-%Y" 2>/dev/null || echo "$exp_raw")
+        fi
+
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_CREAM}%-15s${C_RESET} %-20s ${C_BURGUNDY}║${C_RESET}\n" "${username}" "${exp_display}" "${status_display}"
+        ((count++))
+    fi
+done < /etc/passwd
+
+if [[ $count -eq 0 ]]; then
+    printf "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}%-48s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "             No SSH users found"
+fi
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+echo -e ""
+
+# 2. Input Username
+read -p "  ${ICON_USER} Select Username to Unlock : " username
+
+if [[ -z "$username" ]]; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Cancelled.${C_RESET}"
+    sleep 1; menu; exit 0
+fi
+
+# Validasi User Exists
+if ! id "$username" &>/dev/null; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Error: User '$username' not found!${C_RESET}"
+    sleep 2; menu; exit 0
+fi
+
+# 3. Unlock Process
+# passwd -u melakukan unlock
+if passwd -u "$username" > /dev/null 2>&1; then
+    # Jika berhasil
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}ACCOUNT UNLOCKED SUCCESSFULLY${C_RESET}      ${C_SAGE}${ICON_UNLOCK}${C_RESET}        ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$username"
+    printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Status" "Active / Unlocked"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+    echo -e "  ${C_SAGE}User '$username' can now login again.${C_RESET}"
+else
+    # Jika gagal (biasanya karena user tidak memiliki password atau sudah unlocked)
+    # Kita coba paksa hapus password lock '!' di shadow file (fallback method jika passwd -u gagal)
+    # Namun umumnya passwd -u sudah cukup. Kita tampilkan error saja.
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Failed to unlock. User might already be unlocked or has no password set.${C_RESET}"
+fi
+
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

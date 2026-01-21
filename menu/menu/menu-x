@@ -1,0 +1,210 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - UTILITY MENU
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_SYS="🖥️"
+ICON_NET="🌐"
+ICON_TOOL="🛠️"
+ICON_UPD="🔄"
+ICON_BACKUP="💾"
+ICON_CERT="🔒"
+ICON_STAR="✨"
+ICON_EXIT="🔙"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+
+# ==========================================================
+#  SYSTEM INFO GATHERING
+# ==========================================================
+clear
+MYIP=$(curl -sS ipv4.icanhazip.com)
+IZIN_URL="https://raw.githubusercontent.com/dudul19/tomato/main/izin"
+
+# Get User Info
+USER_DATA=$(curl -s ${IZIN_URL} | grep $MYIP)
+USERNAME=$(echo "$USER_DATA" | awk '{print $2}')
+EXP_DATE=$(echo "$USER_DATA" | awk '{print $3}')
+REG_DATE=$(echo "$USER_DATA" | awk '{print $4}')
+
+# Validasi Data
+if [[ -z "$USERNAME" ]]; then USERNAME="Trial/Free"; fi
+if [[ -z "$REG_DATE" ]]; then REG_DATE="Unknown"; fi
+
+# Hitung Expired
+TODAY=$(date +"%Y-%m-%d")
+D1=$(date -d "$EXP_DATE" +%s)
+D2=$(date -d "$TODAY" +%s)
+DAYS_LEFT=$(((D1 - D2) / 86400))
+
+if [[ "$D1" -ge "$D2" ]]; then
+    STATUS_LIC="${C_SAGE}ACTIVE${C_RESET}"
+else
+    STATUS_LIC="${C_TOMATO}EXPIRED${C_RESET}"
+    DAYS_LEFT="0"
+fi
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(UTILITY TOOLS)${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_SYS} IP     : ${C_CREAM}$MYIP${C_RESET}                 ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+show_license_info() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}LICENSE INFORMATION${C_RESET}                  ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "IP Address" "$MYIP"
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$USERNAME"
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Registered" "$REG_DATE"
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Expired" "$EXP_DATE"
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Validity" "$DAYS_LEFT Days"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${STATUS_LIC}%-41s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Status" " "
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+    read -n 1 -s -r -p "Press any key to return..."
+    menu-x
+}
+
+install_udp() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}               ${C_TOMATO}INSTALLATION WARNING${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}Requirements:${C_RESET}                                        ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}• Ubuntu 20.04 Only${C_RESET}                                  ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}• Minimal RAM 2GB (Prevents Disk Full)${C_RESET}               ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+    read -p "  Proceed with installation? (y/n) : " ans
+    if [[ $ans == 'y' || $ans == 'Y' ]]; then
+        wget --load-cookies /tmp/cookies.txt ${UDPX} -O install-udp && rm -rf /tmp/cookies.txt && chmod +x install-udp && ./install-udp
+    else
+        menu-x
+    fi
+}
+
+change_banner() {
+    clear
+    echo -e "${C_GOLD}Opening Banner Editor...${C_RESET}"
+    sleep 1
+    nano /etc/kyt.txt
+    
+    echo -e ""
+    echo -e "${C_GOLD}Do you want to apply this new banner? (y/n)${C_RESET}"
+    read -p "  > " ans
+    if [[ $ans == 'y' || $ans == 'Y' ]]; then
+        service ssh restart
+        service dropbear restart
+        echo -e "${C_SAGE}${ICON_CHECK} Banner Updated!${C_RESET}"
+    else
+        echo -e "${C_TOMATO}${ICON_CROSS} Cancelled.${C_RESET}"
+    fi
+    sleep 2
+    menu-x
+}
+
+# ==========================================================
+#  MAIN MENU
+# ==========================================================
+
+draw_header
+
+# --- System Tools ---
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                  ${C_GOLD}SYSTEM TOOLS${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[01]${C_RESET} ${C_CREAM}Menu Trial${C_RESET}             ${C_SAGE}${ICON_SYS}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[02]${C_RESET} ${C_CREAM}Clean Expired User${C_RESET}     ${C_SAGE}${ICON_SYS}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[03]${C_RESET} ${C_CREAM}Auto Reboot Settings${C_RESET}   ${C_SAGE}${ICON_SYS}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[04]${C_RESET} ${C_CREAM}Restart All Services${C_RESET}   ${C_SAGE}${ICON_SYS}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# --- Configuration ---
+echo -e "${C_BURGUNDY}║${C_RESET}                  ${C_GOLD}CONFIGURATION${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[05]${C_RESET} ${C_CREAM}Bot Telegram Panel${C_RESET}     ${C_SAGE}${ICON_NET}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[06]${C_RESET} ${C_CREAM}Change SSH Banner${C_RESET}      ${C_SAGE}${ICON_NET}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[07]${C_RESET} ${C_CREAM}Check Port Info${C_RESET}        ${C_SAGE}${ICON_NET}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[08]${C_RESET} ${C_CREAM}Backup & Restore${C_RESET}       ${C_SAGE}${ICON_BACKUP}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[09]${C_RESET} ${C_CREAM}Renew Domain${C_RESET}           ${C_SAGE}${ICON_NET}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# --- Installer & Fixer ---
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}INSTALLER & FIXER${C_RESET}                    ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[10]${C_RESET} ${C_CREAM}Check Running Service${C_RESET}  ${C_SAGE}${ICON_TOOL}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[11]${C_RESET} ${C_CREAM}Check License Info${C_RESET}     ${C_SAGE}${ICON_TOOL}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[12]${C_RESET} ${C_CREAM}Update Script${C_RESET}          ${C_SAGE}${ICON_UPD}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[13]${C_RESET} ${C_CREAM}Fix SSL Certificate${C_RESET}    ${C_SAGE}${ICON_CERT}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[14]${C_RESET} ${C_CREAM}Install UDP Custom${C_RESET}     ${C_SAGE}${ICON_UPD}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[15]${C_RESET} ${C_CREAM}Downgrade Xray${C_RESET}         ${C_SAGE}${ICON_UPD}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[16]${C_RESET} ${C_CREAM}Install ZiVPN${C_RESET}          ${C_SAGE}${ICON_UPD}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}[x]${C_RESET} ${C_TOMATO}Back to Main Menu${C_RESET}     ${C_GOLD}${ICON_EXIT}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+echo -e ""
+
+read -p "  Select From Options : " opt
+echo -e ""
+
+case $opt in
+    1|01) clear ; m-trial ;;
+    2|02) clear ; xp ; echo -e "${C_SAGE}Done${C_RESET}"; sleep 1; menu-x ;;
+    3|03) clear ; autoreboot ;;
+    4|04) clear ; restart ; reboot ;;
+    5|05) clear ; m-bot ;;
+    6|06) change_banner ;;
+    7|07) clear ; prot ;;
+    8|08) clear ; menu-backup ;;
+    9|09) clear ; addhost ;;
+    10) clear ; run ;;
+    11) show_license_info ;;
+    12) 
+        clear
+        rm -f /root/update.sh
+        wget -q https://raw.githubusercontent.com/dudul19/tomato/main/update.sh
+        chmod +x update.sh
+        ./update.sh
+        ;;
+    13) clear ; fixcert ;;
+    14) install_udp ;;
+    15) 
+        clear
+        rm xray-downgrade
+        wget -q https://github.com/dudul19/tomato/main/menu/xray-downgrade
+        chmod +x xray-downgrade
+        ./xray-downgrade
+        ;;
+    16)
+        clear
+        wget -q https://raw.githubusercontent.com/dudul19/tomato/main/zivpn
+        chmod +x zivpn
+        ./zivpn
+        systemctl status zivpn
+        ;;
+    x|X) menu ;;
+    *) echo -e "${C_TOMATO}Invalid Option.${C_RESET}"; sleep 1; menu-x ;;
+esac

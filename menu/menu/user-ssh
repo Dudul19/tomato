@@ -1,0 +1,173 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - CHECK SSH USER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_SSH="🚀"
+ICON_KEY="🔑"
+ICON_TIME="⏳"
+ICON_USER="👤"
+ICON_NET="🌐"
+ICON_CHECK="✔"
+ICON_LINK="🔗"
+ICON_STAR="✨"
+ICON_SEARCH="🔍"
+
+# ==========================================================
+#  UI FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(CHECK SSH)${C_RESET}               ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_SEARCH} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# 1. List Users
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}REGISTERED USERS${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_GOLD}%-15s${C_RESET} ${C_SAGE}%-12s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "USERNAME" "EXPIRY" "STATUS"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+count=0
+while IFS=: read -r username _ uid _ _ _ _; do
+    if [[ $uid -ge 1000 && "$username" != "nobody" ]]; then
+        # Ambil Status Lock
+        status_code=$(passwd -S "$username" | awk '{print $2}')
+        if [[ "$status_code" == "L" ]]; then
+            status_display="${C_TOMATO}LOCKED${C_RESET}"
+        else
+            status_display="${C_SAGE}ACTIVE${C_RESET}"
+        fi
+
+        # Ambil Tanggal Expired
+        exp_raw=$(chage -l "$username" | grep "Account expires" | cut -d: -f2 | sed 's/^[ \t]*//')
+        if [[ "$exp_raw" == "never" ]]; then
+            exp_display="Lifetime"
+        else
+            exp_display=$(date -d "$exp_raw" "+%d-%b-%Y" 2>/dev/null || echo "Unknown")
+        fi
+
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_CREAM}%-15s${C_RESET} %-20s ${C_BURGUNDY}║${C_RESET}\n" "${username}" "${exp_display}" "${status_display}"
+        ((count++))
+    fi
+done < /etc/passwd
+
+if [[ $count -eq 0 ]]; then
+    printf "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}%-48s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "             No SSH users found"
+fi
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+echo -e ""
+
+# 2. Input Username
+read -p "  ${ICON_USER} Select Username : " user
+
+if [[ -z "$user" ]]; then
+    echo -e "  ${C_TOMATO}${ICON_SEARCH} Cancelled.${C_RESET}"
+    sleep 1; menu; exit 0
+fi
+
+# Validasi User
+if ! id "$user" &>/dev/null; then
+    echo -e "  ${C_TOMATO}${ICON_SEARCH} Error: User '$user' not found!${C_RESET}"
+    sleep 2; menu; exit 0
+fi
+
+# 3. Retrieve Data (From .ssh.db)
+print_status "Retrieving Account Data"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "No Domain")
+DB_FILE="/etc/ssh/.ssh.db"
+
+# Cari data di DB. Jika tidak ada (misal manual adduser), set default.
+if grep -q "#ssh# $user" "$DB_FILE"; then
+    DATA=$(grep -w "#ssh# $user" "$DB_FILE")
+    # Format DB: #ssh# username password exp quota limit
+    Pass=$(echo "$DATA" | awk '{print $3}')
+    expe=$(echo "$DATA" | awk '{print $4,$5,$6}') # Tanggal
+    Quota=$(echo "$DATA" | awk '{print $7}')
+    iplimit=$(echo "$DATA" | awk '{print $8}')
+else
+    Pass="Unknown (Manual)"
+    expe=$(chage -l "$user" | grep "Account expires" | cut -d: -f2)
+    Quota="Unlimited"
+    iplimit="Unlimited"
+fi
+
+if [[ -z "$Quota" ]]; then Quota="Unlimited"; fi
+if [[ -z "$iplimit" ]]; then iplimit="Unlimited"; fi
+
+# 4. Generate Output
+clear
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}ACCOUNT DETAILS FOUND${C_RESET}          ${C_SAGE}${ICON_SSH}${C_RESET}         ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$user"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Password" "$Pass"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Expired Date" "$expe"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Quota" "$Quota"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Limit IP" "$iplimit Device(s)"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}CONNECTION INFO${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Host/IP" "$domain"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "OpenSSH" "22"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Dropbear" "109, 143"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "SSL/TLS" "443"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "WS HTTP" "80, 2082"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_LINK} Payload WS:${C_RESET}                                      ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}GET / HTTP/1.1[crlf]Host: $domain[crlf]${C_RESET}            ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}Upgrade: websocket[crlf][crlf]${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+# 5. Telegram Notification
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+
+if [[ ! -z "$CHATID" && ! -z "$KEY" ]]; then
+    MSG="
+<b>🍅 TOMATO SSH DETAILS 🍅</b>
+<code>───────────────────────</code>
+<b>👤 Username :</b> <code>$user</code>
+<b>🔑 Password :</b> <code>$Pass</code>
+<b>📅 Expired  :</b> <code>$expe</code>
+<code>───────────────────────</code>
+<b>🌐 Host     :</b> <code>$domain</code>
+<b>🔓 Quota    :</b> <code>$Quota</code>
+<b>🔒 Limit IP :</b> <code>$iplimit</code>
+<code>───────────────────────</code>
+"
+    curl -s --max-time 10 -d "chat_id=$CHATID&disable_web_page_preview=1&text=$MSG&parse_mode=html" "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null
+    echo -e "  ${C_SAGE}${ICON_CHECK} Sent to Telegram.${C_RESET}"
+fi
+
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

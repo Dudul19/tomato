@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - VMESS MONITOR
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_VMESS="💠"
+ICON_USER="👤"
+ICON_QUOTA="📦"
+ICON_CAL="📅"
+ICON_STAR="✨"
+ICON_GLOBE="🌐"
+ICON_LIST="📜"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    domain=$(cat /etc/xray/domain 2>/dev/null || echo "No Domain")
+    ip_vps=$(curl -sS ipv4.icanhazip.com)
+    
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MONITOR${C_RESET} ${C_GOLD}(VMESS USER)${C_RESET}              ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_GLOBE} HOST   : ${C_CREAM}$domain${C_RESET}                  ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_VMESS} IP     : ${C_CREAM}$ip_vps${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}REGISTERED ACCOUNTS${C_RESET}                  ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+# Table Header using printf for alignment
+printf "${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-18s %-16s %-12s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "USERNAME" "EXPIRY" "QUOTA"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+total_akun=0
+# Ambil data user dari config (Format: ### username)
+# Menggunakan mapfile/read array untuk handle spasi aman
+mapfile -t users < <(grep '###' /etc/xray/config.json | cut -d ' ' -f 2 | sort | uniq)
+
+for user in "${users[@]}"; do
+    if [[ -z "$user" ]]; then continue; fi
+
+    # --- HITUNG KUOTA ---
+    if [[ -e /etc/vmess/${user} ]]; then
+        byte_quota=$(cat /etc/vmess/${user})
+        
+        if [[ "$byte_quota" -eq 0 ]]; then
+            quota_display="${C_SAGE}Unlimited${C_RESET}"
+        else
+            # Konversi Cerdas
+            if [[ $byte_quota -ge 1073741824 ]]; then
+                gb_quota=$(awk "BEGIN {printf \"%.1f\", $byte_quota/1073741824}")
+                quota_display="${C_GOLD}${gb_quota} GB${C_RESET}"
+            else
+                mb_quota=$(awk "BEGIN {printf \"%.0f\", $byte_quota/1048576}")
+                quota_display="${C_GOLD}${mb_quota} MB${C_RESET}"
+            fi
+        fi
+    else
+        quota_display="${C_SAGE}Unlimited${C_RESET}"
+    fi
+
+    # --- AMBIL EXPIRED ---
+    exp=$(grep -wE "^### $user" "/etc/xray/config.json" | cut -d ' ' -f 3 | head -1)
+    
+    # --- PRINT ROW ---
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_CREAM}%-16s${C_RESET} %-21s ${C_BURGUNDY}║${C_RESET}\n" "${user}" "${exp}" "${quota_display}"
+    
+    ((total_akun++))
+done
+
+# Jika tidak ada user
+if [[ $total_akun -eq 0 ]]; then
+    printf "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}%-48s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "             No Vmess users found"
+fi
+
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+# Footer Info
+echo -e ""
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e "  ${C_GOLD}${ICON_LIST} Total Active Users :${C_RESET} ${C_SAGE}$total_akun Account(s)${C_RESET}"
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e ""
+
+read -n 1 -s -r -p "Press any key to return..."
+menu

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # 1. BUAT FOLDER PENAMPUNG
 mkdir -p /usr/local/sbin/alpha-vps
 
@@ -55,7 +57,7 @@ checking_sc() {
         echo -e "   \033[0;33mYour VPS${NC} $MYIP \033[0;33mHas been Banned${NC}"
         echo -e "     \033[0;33mBuy access permissions for scripts${NC}"
         echo -e "             \033[0;33mContact Admin :${NC}"
-        echo -e "       ${GREEN}Telegram${NC} https://t.me/dudulrealnofek"
+        echo -e "       ${GREEN}Telegram${NC} t.me/dudulrealnofek"
         echo -e "\033[1;93m────────────────────────────────────────────\033[0m"
         exit 1
     fi

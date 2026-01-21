@@ -1,0 +1,171 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - AUTO REBOOT MANAGER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_STAR="✨"
+ICON_REFRESH="🔄"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_GEAR="⚙"
+ICON_ARROW="➜"
+ICON_CLOCK="⏰"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO AUTO-REBOOT${C_RESET} ${C_GOLD}(SCHEDULER)${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_success() {
+    echo -e "  ${C_SAGE}${ICON_CHECK} SUCCESS:${C_RESET} ${C_CREAM}$1${C_RESET}"
+    sleep 1
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  INITIALIZATION & SETUP
+# ==========================================================
+
+# Setup Auto-Reboot Script Execution File
+if [ ! -e /usr/local/bin/reboot_otomatis ]; then
+    cat > /usr/local/bin/reboot_otomatis << END
+#!/bin/bash
+tanggal=\$(date +"%m-%d-%Y")
+waktu=\$(date +"%T")
+echo "Successfully Reboot On \$tanggal Time \$waktu." >> /root/log-reboot.txt
+/sbin/shutdown -r now
+END
+    chmod +x /usr/local/bin/reboot_otomatis
+fi
+
+# ==========================================================
+#  MAIN MENU
+# ==========================================================
+
+draw_header
+
+# Check Current Status (Simple check if cron file exists)
+if [ -f /etc/cron.d/reboot_otomatis ]; then
+    sts="${C_SAGE}ACTIVE [ON]${C_RESET}"
+else
+    sts="${C_TOMATO}INACTIVE [OFF]${C_RESET}"
+fi
+
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}                  ${C_GOLD}CURRENT STATUS${C_RESET}                    ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+echo -e "   ${C_SAGE}${ICON_CLOCK} Scheduler Status :${C_RESET} $sts"
+echo -e "${C_BURGUNDY}  ------------------------------------------------------${C_RESET}"
+echo -e ""
+
+echo -e "  ${C_GOLD}[01]${C_RESET} Set Every 1 Hour"
+echo -e "  ${C_GOLD}[02]${C_RESET} Set Every 6 Hours"
+echo -e "  ${C_GOLD}[03]${C_RESET} Set Every 12 Hours"
+echo -e "  ${C_GOLD}[04]${C_RESET} Set Every 1 Day (Midnight)"
+echo -e "  ${C_GOLD}[05]${C_RESET} Set Every 1 Week"
+echo -e "  ${C_GOLD}[06]${C_RESET} Set Every 1 Month"
+echo -e "  ${C_BURGUNDY}──────────────────────────────────────────────────────${C_RESET}"
+echo -e "  ${C_GOLD}[07]${C_RESET} ${C_TOMATO}Disable Auto-Reboot${C_RESET}"
+echo -e "  ${C_GOLD}[08]${C_RESET} View Reboot Log"
+echo -e "  ${C_GOLD}[09]${C_RESET} Clear Reboot Log"
+echo -e "  ${C_GOLD}[00]${C_RESET} Back to Menu"
+echo -e ""
+echo -e "  ${C_GOLD}${ICON_ARROW} Select Option :${C_RESET}"
+read -p "      > " opt
+
+case $opt in
+    1|01)
+        echo "59 * * * * root /usr/local/bin/reboot_otomatis" > /etc/cron.d/reboot_otomatis
+        print_success "Auto-Reboot set to 1 Hour Period"
+        autoreboot
+        ;;
+    2|02)
+        echo "10 */6 * * * root /usr/local/bin/reboot_otomatis" > /etc/cron.d/reboot_otomatis
+        print_success "Auto-Reboot set to 6 Hours Period"
+        autoreboot
+        ;;
+    3|03)
+        echo "10 */12 * * * root /usr/local/bin/reboot_otomatis" > /etc/cron.d/reboot_otomatis
+        print_success "Auto-Reboot set to 12 Hours Period"
+        autoreboot
+        ;;
+    4|04)
+        echo "0 0 * * * root /usr/local/bin/reboot_otomatis" > /etc/cron.d/reboot_otomatis
+        print_success "Auto-Reboot set to 1 Day Period"
+        autoreboot
+        ;;
+    5|05)
+        echo "10 0 */7 * * root /usr/local/bin/reboot_otomatis" > /etc/cron.d/reboot_otomatis
+        print_success "Auto-Reboot set to 1 Week Period"
+        autoreboot
+        ;;
+    6|06)
+        echo "10 0 1 * * root /usr/local/bin/reboot_otomatis" > /etc/cron.d/reboot_otomatis
+        print_success "Auto-Reboot set to 1 Month Period"
+        autoreboot
+        ;;
+    7|07)
+        rm -f /etc/cron.d/reboot_otomatis
+        echo -e "  ${C_TOMATO}${ICON_CROSS} Auto-Reboot Deactivated Successfully${C_RESET}"
+        sleep 1
+        autoreboot
+        ;;
+    8|08)
+        clear
+        draw_header
+        echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+        echo -e "${C_BURGUNDY}  |${C_RESET}                  ${C_GOLD}REBOOT HISTORY${C_RESET}                    ${C_BURGUNDY}|${C_RESET}"
+        echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+        if [ ! -e /root/log-reboot.txt ]; then
+            echo -e "  ${C_CREAM}No reboot history found.${C_RESET}"
+        else
+            # Tampilkan 10 baris terakhir agar layar tidak penuh
+            tail -n 10 /root/log-reboot.txt | while read line; do
+                echo -e "  ${C_SAGE}${ICON_CHECK} ${C_CREAM}$line${C_RESET}"
+            done
+        fi
+        echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+        read -n 1 -s -r -p "  Press any key to go back..."
+        autoreboot
+        ;;
+    9|09)
+        echo "" > /root/log-reboot.txt
+        print_success "Reboot Log Cleared"
+        autoreboot
+        ;;
+    0|00)
+        menu
+        ;;
+    x)
+        exit
+        ;;
+    *)
+        echo -e "  ${C_TOMATO}${ICON_CROSS} Invalid Option!${C_RESET}"
+        sleep 1
+        autoreboot
+        ;;
+esac

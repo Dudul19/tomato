@@ -1,0 +1,181 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - BOT PANEL MANAGER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_BOT="🤖"
+ICON_ADD="➕"
+ICON_DEL="🗑️"
+ICON_START="▶️"
+ICON_STOP="⏹️"
+ICON_RESTART="🔄"
+ICON_ON="🟢"
+ICON_OFF="🔴"
+ICON_STAR="✨"
+ICON_EXIT="🔙"
+
+# ==========================================================
+#  PERMISSION CHECK
+# ==========================================================
+IPVPES="https://raw.githubusercontent.com/dudul19/tomato/main/izin"
+
+function checking_sc() {
+    ipsaya=$(curl -sS ipv4.icanhazip.com)
+    data_server=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+    date_list=$(date +"%Y-%m-%d" -d "$data_server")
+    
+    useexp=$(wget -qO- $IPVPES | grep $ipsaya | awk '{print $3}')
+    
+    if [[ "$date_list" < "$useexp" ]]; then
+        return 0
+    else
+        clear
+        echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET}              ${C_TOMATO}🚫 ACCESS DENIED 🚫${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}Your VPS IP has been banned or not registered!${C_RESET}       ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET}                                                      ${C_BURGUNDY}║${C_RESET}"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : ${C_TOMATO}%-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "IP Address" "$ipsaya"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : ${C_SAGE}%-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Contact" "t.me/dudulrealnofek"
+        echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+        exit 1
+    fi
+}
+checking_sc
+
+# ==========================================================
+#  UI FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    # Cek Status Bot
+    if systemctl is-active --quiet kyt; then
+        status_bot="${C_SAGE}ONLINE ${ICON_ON}${C_RESET}"
+    else
+        status_bot="${C_TOMATO}OFFLINE ${ICON_OFF}${C_RESET}"
+    fi
+
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(BOT PANEL)${C_RESET}                ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_BOT} STATUS : ${status_bot}                           ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_STAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  ACTION FUNCTIONS
+# ==========================================================
+
+start_install_bot() {
+    print_status "Downloading Bot Script"
+    wget -q https://raw.githubusercontent.com/dudul19/tomato/main/bot/bot.sh -O bot.sh
+    chmod +x bot.sh
+    ./bot.sh
+}
+
+restart_bot_service() {
+    draw_header
+    echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+    echo -e "${C_BURGUNDY}  |${C_RESET}               ${C_GOLD}RESTARTING BOT SERVICE${C_RESET}                 ${C_BURGUNDY}|${C_RESET}"
+    echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+    
+    print_status "Stopping Service"
+    systemctl stop kyt
+    sleep 1
+    
+    print_status "Starting Service"
+    systemctl start kyt
+    systemctl restart kyt
+    
+    echo -e "  ${C_SAGE}${ICON_ON} Bot Service Restarted!${C_RESET}"
+    read -n 1 -s -r -p "Press any key to return..."
+    mbot-panel
+}
+
+stop_bot_service() {
+    draw_header
+    echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+    echo -e "${C_BURGUNDY}  |${C_RESET}                 ${C_GOLD}STOPPING BOT SERVICE${C_RESET}                 ${C_BURGUNDY}|${C_RESET}"
+    echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+    
+    print_status "Stopping Service"
+    systemctl stop kyt
+    
+    echo -e "  ${C_TOMATO}${ICON_OFF} Bot Service Stopped!${C_RESET}"
+    read -n 1 -s -r -p "Press any key to return..."
+    mbot-panel
+}
+
+delete_bot_panel() {
+    # Memanggil script hapus-bot eksternal jika ada
+    if command -v hapus-bot &> /dev/null; then
+        hapus-bot
+    else
+        echo -e "  ${C_TOMATO}Error: 'hapus-bot' script not found.${C_RESET}"
+        sleep 2
+        mbot-panel
+    fi
+}
+
+# ==========================================================
+#  MAIN MENU
+# ==========================================================
+
+draw_header
+
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[01]${C_RESET} ${C_CREAM}Install/Add Bot Panel${C_RESET}  ${C_SAGE}${ICON_ADD}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[02]${C_RESET} ${C_CREAM}Delete Bot Panel${C_RESET}       ${C_TOMATO}${ICON_DEL}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[03]${C_RESET} ${C_CREAM}Stop Bot Panel${C_RESET}         ${C_TOMATO}${ICON_STOP}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[04]${C_RESET} ${C_CREAM}Restart Bot Panel${C_RESET}      ${C_SAGE}${ICON_RESTART}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}[00]${C_RESET} ${C_TOMATO}Back to Main Menu${C_RESET}      ${C_GOLD}${ICON_EXIT}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+echo -e ""
+
+read -p "  Select Option : " opt
+echo -e ""
+
+case $opt in
+    01|1)
+        clear
+        start_install_bot
+        ;;
+    02|2)
+        clear
+        delete_bot_panel
+        ;;
+    03|3)
+        stop_bot_service
+        ;;
+    04|4)
+        restart_bot_service
+        ;;
+    00|0)
+        menu
+        ;;
+    *)
+        echo -e "  ${C_TOMATO}Invalid Selection.${C_RESET}"
+        sleep 1
+        mbot-panel
+        ;;
+esac

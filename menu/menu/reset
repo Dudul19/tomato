@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - RESTART SERVICE
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_REFRESH="🔄"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_WAIT="⏳"
+ICON_GEAR="⚙"
+ICON_STAR="✨"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(RESTART SERVICE)${C_RESET}          ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+restart_service() {
+    local name="$1"
+    local service="$2"
+    
+    # Format baris dalam tabel
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-30s${C_RESET} : " "$name"
+    
+    # Cek apakah service ada (aktif/tidak)
+    if systemctl list-units --full -all | grep -Fq "$service"; then
+        # Jika service ditemukan, restart
+        systemctl restart "$service" > /dev/null 2>&1
+        
+        # Cek hasil exit code
+        if [ $? -eq 0 ]; then
+             echo -e "${C_SAGE}[ OK ] ${ICON_CHECK}${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+        else
+             echo -e "${C_TOMATO}[FAIL] ${ICON_CROSS}${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+        fi
+    else
+        # Jika service tidak terinstall
+        echo -e "${C_GOLD}[SKIP] ${ICON_GEAR}${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    fi
+    sleep 0.1
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}SYSTEM SERVICES${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# 1. System Core
+restart_service "System Daemon" "daemon-reload"
+restart_service "Netfilter Persistent" "netfilter-persistent"
+restart_service "Cron Scheduler" "cron"
+restart_service "Local RC" "rc-local"
+
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                   ${C_GOLD}VPN CORE${C_RESET}                           ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# 2. VPN Services (Array List)
+# Format: "Nama Tampilan:Nama_Service"
+restart_service "Nginx Webserver" "nginx"
+restart_service "Xray Core" "xray"
+restart_service "Dropbear SSH" "dropbear"
+restart_service "OpenSSH Service" "ssh"
+restart_service "OpenVPN Service" "openvpn"
+restart_service "WebSocket Python" "ws"
+restart_service "Squid Proxy" "squid"
+restart_service "Haproxy Loadbalancer" "haproxy"
+restart_service "UDP Custom" "udp-custom"
+restart_service "ZiVPN Tunnel" "zivpn"
+
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}               ${C_GOLD}BADVPN & UDPGW${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# 3. BadVPN Handling (Special Case)
+# Restart via Service first
+restart_service "BadVPN Service 1" "badvpn1"
+restart_service "BadVPN Service 2" "badvpn2"
+restart_service "BadVPN Service 3" "badvpn3"
+
+# Restart via Screen (Fallback/Ensure)
+# Kill old screens
+pkill -f badvpn-udpgw > /dev/null 2>&1
+# Start new screens
+screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7100 --max-clients 1000
+screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7200 --max-clients 1000
+screen -dmS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 1000
+
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-30s${C_RESET} : ${C_SAGE}[ OK ] ${ICON_CHECK}${C_RESET}             ${C_BURGUNDY}║${C_RESET}\n" "BadVPN Screen (7100-7300)"
+
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+echo -e "  ${C_SAGE}${ICON_CHECK} All services have been restarted/refreshed.${C_RESET}"
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

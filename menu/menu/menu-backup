@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - BACKUP MENU
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_BACKUP="💾"
+ICON_RESTORE="♻️"
+ICON_EXIT="🔙"
+ICON_STAR="✨"
+
+# ==========================================================
+#  PERMISSION CHECK
+# ==========================================================
+IPVPES="https://raw.githubusercontent.com/dudul19/tomato/main/izin"
+
+function checking_sc() {
+    ipsaya=$(curl -sS ipv4.icanhazip.com)
+    data_server=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+    date_list=$(date +"%Y-%m-%d" -d "$data_server")
+    
+    useexp=$(wget -qO- $IPVPES | grep $ipsaya | awk '{print $3}')
+    
+    if [[ "$date_list" < "$useexp" ]]; then
+        return 0
+    else
+        clear
+        echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET}              ${C_TOMATO}🚫 ACCESS DENIED 🚫${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}Your VPS IP has been banned or not registered!${C_RESET}       ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET}                                                      ${C_BURGUNDY}║${C_RESET}"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : ${C_TOMATO}%-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "IP Address" "$ipsaya"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : ${C_SAGE}%-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Contact" "t.me/dudulrealnofek"
+        echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+        exit 1
+    fi
+}
+
+# Perform Check
+checking_sc
+
+# ==========================================================
+#  UI FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(BACKUP CENTER)${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# ==========================================================
+#  MAIN MENU
+# ==========================================================
+
+draw_header
+
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[01]${C_RESET} ${C_CREAM}Backup VPS Data${C_RESET}       ${C_SAGE}${ICON_BACKUP}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[02]${C_RESET} ${C_CREAM}Restore VPS Data${C_RESET}      ${C_SAGE}${ICON_RESTORE}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}[00]${C_RESET} ${C_TOMATO}Back to Main Menu${C_RESET}     ${C_GOLD}${ICON_EXIT}${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+echo -e ""
+
+read -p "  Select From Options : " opt
+echo -e ""
+
+case $opt in
+    01|1)
+        clear
+        # Pastikan script/fungsi backup ada di sistem
+        if command -v backup &> /dev/null; then
+            backup
+        else
+            echo -e "  ${C_TOMATO}Error: Backup script not found.${C_RESET}"
+            sleep 2
+            menu-backup
+        fi
+        ;;
+    02|2)
+        clear
+        # Pastikan script/fungsi restore ada di sistem
+        if command -v restore &> /dev/null; then
+            restore
+        else
+            echo -e "  ${C_TOMATO}Error: Restore script not found.${C_RESET}"
+            sleep 2
+            menu-backup
+        fi
+        ;;
+    00|0)
+        menu
+        ;;
+    *)
+        echo -e "  ${C_TOMATO}Please enter a valid number!${C_RESET}"
+        sleep 1
+        menu-backup
+        ;;
+esac

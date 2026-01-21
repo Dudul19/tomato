@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - SERVICE MONITOR
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_ON="🟢"
+ICON_OFF="🔴"
+ICON_VPS="🖥️"
+ICON_NET="🌐"
+ICON_GEAR="⚙"
+ICON_STAR="✨"
+ICON_USER="👤"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+# Fungsi Cek Status Service
+check_status() {
+    local service_name="$1"
+    # Cek via systemctl
+    if systemctl is-active --quiet "$service_name"; then
+        echo -e "${C_SAGE}ONLINE ${ICON_ON}${C_RESET}"
+    # Fallback cek via init.d atau ps aux jika perlu (untuk BadVPN screen)
+    elif [[ "$service_name" == *"badvpn"* ]]; then
+        if pgrep -f "$service_name" > /dev/null; then
+             echo -e "${C_SAGE}ONLINE ${ICON_ON}${C_RESET}"
+        else
+             echo -e "${C_TOMATO}OFFLINE ${ICON_OFF}${C_RESET}"
+        fi
+    else
+        echo -e "${C_TOMATO}OFFLINE ${ICON_OFF}${C_RESET}"
+    fi
+}
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MONITOR${C_RESET} ${C_GOLD}(SYSTEM STATUS)${C_RESET}             ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# ==========================================================
+#  SYSTEM DATA
+# ==========================================================
+IPVPS=$(curl -sS ipv4.icanhazip.com)
+OS_NAME=$(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g')
+KERNEL=$(uname -r)
+DOMAIN=$(cat /etc/xray/domain 2>/dev/null || echo "No Domain")
+TIMEZONE=$(timedatectl | grep "Time zone" | awk '{print $3}')
+
+# ==========================================================
+#  MAIN DISPLAY
+# ==========================================================
+
+draw_header
+
+# --- System Info ---
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_VPS} OS       :${C_RESET} ${C_CREAM}${OS_NAME:0:22}${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_GEAR} Kernel   :${C_RESET} ${C_CREAM}${KERNEL}${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_NET} IP/Dom   :${C_RESET} ${C_CREAM}${IPVPS} / ${DOMAIN}${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_GEAR} Timezone :${C_RESET} ${C_CREAM}${TIMEZONE}${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# --- Service Status Table (2 Columns) ---
+echo -e "${C_BURGUNDY}║${C_RESET}                  ${C_SAGE}SERVICE STATUS${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# Mendapatkan Status
+s_ssh=$(check_status ssh)
+s_drop=$(check_status dropbear)
+s_stunnel=$(check_status stunnel4)
+s_squid=$(check_status squid)
+s_nginx=$(check_status nginx)
+s_xray=$(check_status xray)
+s_ws=$(check_status ws)
+s_hapr=$(check_status haproxy)
+s_openvpn=$(check_status openvpn)
+s_cron=$(check_status cron)
+s_fail2ban=$(check_status fail2ban)
+s_udp=$(check_status udp-custom)
+s_bad1=$(check_status udp-mini-1)
+s_bad2=$(check_status udp-mini-2)
+s_bad3=$(check_status udp-mini-3)
+s_rc=$(check_status rc-local)
+
+# Menampilkan dalam format Grid
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}│${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}║${C_RESET}\n" "SSH" "$s_ssh" "XRAY" "$s_xray"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}│${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}║${C_RESET}\n" "DROPBEAR" "$s_drop" "WS-EPRO" "$s_ws"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}│${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}║${C_RESET}\n" "OPENVPN" "$s_openvpn" "HAPROXY" "$s_hapr"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}│${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}║${C_RESET}\n" "NGINX" "$s_nginx" "SQUID" "$s_squid"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}│${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}║${C_RESET}\n" "CRON" "$s_cron" "FAIL2BAN" "$s_fail2ban"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}│${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}║${C_RESET}\n" "UDP-CUST" "$s_udp" "RC-LOCAL" "$s_rc"
+
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                  ${C_GOLD}BADVPN STATUS${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}│${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}║${C_RESET}\n" "PORT 7100" "$s_bad1" "PORT 7300" "$s_bad3"
+printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}│${C_RESET} ${C_CREAM}%-10s${C_RESET} %-14s ${C_BURGUNDY}║${C_RESET}\n" "PORT 7200" "$s_bad2" " " " "
+
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+echo -e " ${C_GOLD}Need Support? Contact Telegram:${C_RESET} ${C_SAGE}@dudulrealnofek${C_RESET}"
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

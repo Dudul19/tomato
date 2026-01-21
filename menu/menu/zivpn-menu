@@ -1,0 +1,307 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - ZIVPN MANAGER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_ZIVPN="⚡"
+ICON_USER="👤"
+ICON_KEY="🔑"
+ICON_TIME="⏳"
+ICON_NET="🌐"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_TRASH="🗑️"
+ICON_STAR="✨"
+ICON_GEAR="⚙"
+
+# 3. Config Paths
+CONFIG_FILE="/etc/zivpn/config.json"
+USER_DB="/etc/zivpn/user-db.json"
+SERVICE_NAME="zivpn.service"
+
+# Ensure jq is installed
+if ! command -v jq &> /dev/null; then
+    echo "Installing dependencies..."
+    apt-get install jq -y > /dev/null 2>&1
+fi
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(ZIVPN TUNNEL)${C_RESET}            ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+restart_service() {
+    print_status "Restarting ZiVPN Service"
+    systemctl restart "$SERVICE_NAME" > /dev/null 2>&1
+}
+
+# ==========================================================
+#  CORE FUNCTIONS
+# ==========================================================
+
+function add_user() {
+    draw_header
+    echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+    echo -e "${C_BURGUNDY}  |${C_RESET}               ${C_GOLD}CREATE NEW USER${C_RESET}                      ${C_BURGUNDY}|${C_RESET}"
+    echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+
+    read -p "  ${ICON_USER} Username : " username
+    if [[ -z "$username" ]]; then menu; return; fi
+
+    # Cek Duplicate
+    if grep -q "\"$username\"" "$CONFIG_FILE"; then
+        echo -e "  ${C_TOMATO}${ICON_CROSS} Error: Username already exists!${C_RESET}"
+        sleep 2
+        add_user
+        return
+    fi
+
+    read -p "  ${ICON_KEY} Password : " password
+    if [[ -z "$password" ]]; then password="$username"; fi
+
+    read -p "  ${ICON_TIME} Active Days : " masa_aktif
+    if [[ -z "$masa_aktif" ]]; then masa_aktif="30"; fi
+
+    read -p "  ${ICON_NET} Quota (GB)  : " quota
+    if [[ -z "$quota" ]]; then quota="Unlimited"; fi
+
+    read -p "  ${ICON_GEAR} IP Limit    : " iplimit
+    if [[ -z "$iplimit" ]]; then iplimit="Unlimited"; fi
+
+    # Processing
+    exp_date=$(date -d "+$masa_aktif days" +%Y-%m-%d)
+    domain=$(cat /etc/xray/domain 2>/dev/null || curl -s ipv4.icanhazip.com)
+    IP=$(curl -sS ipv4.icanhazip.com)
+    
+    # Get Port
+    PORT=$(grep -o '"listen": *"[^"]*"' $CONFIG_FILE | cut -d'"' -f4 | sed 's/://g' | sed 's/0.0.0.0//g')
+    [ -z "$PORT" ] && PORT="5667"
+
+    # Save Database (JSON)
+    jq --arg user "$username" '.auth.config += [$user]' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+    jq --arg u "$username" --arg e "$exp_date" --arg q "$quota" --arg i "$iplimit" '.[$u] = {exp: $e, quota: $q, ip: $i}' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+
+    restart_service
+
+    # Telegram Notif
+    CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+    KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+    
+    if [[ ! -z "$CHATID" ]]; then
+        TEXT="
+<b>⚡ ZIVPN ACCOUNT CREATED ⚡</b>
+<code>───────────────────────</code>
+<b>👤 Username :</b> <code>$username</code>
+<b>🔑 Password :</b> <code>$password</code>
+<b>📅 Expired  :</b> <code>$exp_date</code>
+<code>───────────────────────</code>
+<b>🌐 Host     :</b> <code>$domain</code>
+<b>🔌 Port UDP :</b> <code>$PORT</code>
+<b>📦 Quota    :</b> <code>$quota</code>
+<b>🔒 IP Limit :</b> <code>$iplimit</code>
+<code>───────────────────────</code>
+<b>🔰 Connection String:</b>
+<code>$domain:$PORT@$username:$password</code>
+"
+        curl -s --max-time 10 -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null
+    fi
+
+    # Output
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_CHECK}       ${C_TOMATO}ZIVPN ACCOUNT CREATED${C_RESET}        ${C_SAGE}${ICON_ZIVPN}${C_RESET}          ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}ACCOUNT DETAILS${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$username"
+    printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_SAGE}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Password" "$password"
+    printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Expired" "$exp_date"
+    printf " ${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-15s${C_RESET} : ${C_GOLD}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Port UDP" "$PORT"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}String:${C_RESET} ${C_CREAM}${domain}:${PORT}@${username}:${password}${C_RESET}      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+    read -n 1 -s -r -p "Press any key to return..."
+}
+
+function list_users() {
+    draw_header
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}REGISTERED USERS${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_GOLD}%-15s${C_RESET} ${C_SAGE}%-12s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "USERNAME" "EXPIRED" "QUOTA"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+    users=($(jq -r '.auth.config[]' "$CONFIG_FILE"))
+    if [ ${#users[@]} -eq 0 ]; then
+         printf "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}%-48s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "             No users found"
+    else
+        for user in "${users[@]}"; do
+            exp=$(jq -r --arg u "$user" '.[$u].exp // "Unknown"' "$USER_DB")
+            quota=$(jq -r --arg u "$user" '.[$u].quota // "Unlimited"' "$USER_DB")
+            printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-18s${C_RESET} ${C_CREAM}%-15s${C_RESET} %-12s ${C_BURGUNDY}║${C_RESET}\n" "$user" "$exp" "$quota"
+        done
+    fi
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+    read -n 1 -s -r -p "Press any key to return..."
+}
+
+function delete_user() {
+    draw_header
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}DELETE USER LIST${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+    users=($(jq -r '.auth.config[]' "$CONFIG_FILE"))
+    if [ ${#users[@]} -eq 0 ]; then
+         printf "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}%-48s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "             No users found"
+         echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+         read -n 1 -s -r -p "Press any key to return..."
+         return
+    fi
+
+    no=1
+    for user in "${users[@]}"; do
+        printf "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[%02d]${C_RESET} ${C_CREAM}%-41s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "$no" "$user"
+        ((no++))
+    done
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+    echo -e "  ${C_TOMATO}[0] Back / Cancel${C_RESET}"
+    echo -e ""
+    read -p "  Select Number to delete : " num
+
+    if [[ "$num" == "0" || -z "$num" ]]; then return; fi
+
+    index=$((num - 1))
+    if [[ $index -ge 0 && $index -lt ${#users[@]} ]]; then
+        target_user="${users[$index]}"
+        
+        print_status "Deleting User $target_user"
+        
+        # Remove JSON
+        jq --arg u "$target_user" '.auth.config -= [$u]' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+        jq --arg u "$target_user" 'del(.[$u])' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+        
+        restart_service
+        echo -e "  ${C_SAGE}${ICON_CHECK} User deleted successfully.${C_RESET}"
+        sleep 1
+    else
+        echo -e "  ${C_TOMATO}${ICON_CROSS} Invalid selection.${C_RESET}"
+        sleep 1
+    fi
+}
+
+function sync_ssh() {
+    draw_header
+    print_status "Syncing System Users to ZiVPN"
+    
+    count=0
+    while IFS=: read -r username _ uid _ _ _ _; do
+        if [[ $uid -ge 1000 && "$username" != "nobody" ]]; then
+            # Cek jika belum ada di config.json
+            if ! jq -e ".auth.config | index(\"$username\")" "$CONFIG_FILE" > /dev/null; then
+                jq --arg user "$username" '.auth.config += [$user]' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+                jq --arg u "$username" --arg e "2099-12-31" '.[$u] = {exp: $e}' "$USER_DB" > "${USER_DB}.tmp" && mv "${USER_DB}.tmp" "$USER_DB"
+                echo -e "  ${C_SAGE}+ Added:${C_RESET} $username"
+                ((count++))
+            fi
+        fi
+    done < /etc/passwd
+    
+    if [[ $count -gt 0 ]]; then
+        restart_service
+    else
+        echo -e "  ${C_GOLD}${ICON_CHECK} All users already synced.${C_RESET}"
+    fi
+    sleep 2
+}
+
+function fix_udp() {
+    draw_header
+    print_status "Optimizing UDP Custom"
+    PORT=$(grep -o '"listen": *"[^"]*"' $CONFIG_FILE | cut -d'"' -f4 | sed 's/://g' | sed 's/0.0.0.0//g')
+    [ -z "$PORT" ] && PORT="5667"
+    
+    if [ -f "/etc/systemd/system/udp-custom.service" ]; then
+        sed -i "s|server -exclude .*|server -exclude 22,53,68,$PORT|g" /etc/systemd/system/udp-custom.service
+        systemctl daemon-reload
+        systemctl restart udp-custom
+        echo -e "  ${C_SAGE}${ICON_CHECK} UDP Custom Excluded Port: $PORT${C_RESET}"
+    else
+        echo -e "  ${C_TOMATO}${ICON_CROSS} UDP Custom service not found.${C_RESET}"
+    fi
+    sleep 2
+}
+
+# ==========================================================
+#  MENU
+# ==========================================================
+
+while true; do
+    draw_header
+    
+    # System Info
+    PORT=$(grep -o '"listen": *"[^"]*"' $CONFIG_FILE | cut -d'"' -f4 | sed 's/://g' | sed 's/0.0.0.0//g')
+    [ -z "$PORT" ] && PORT="5667"
+    STATUS=$(systemctl is-active "$SERVICE_NAME")
+    if [[ "$STATUS" == "active" ]]; then
+        STATE="${C_SAGE}ONLINE${C_RESET}"
+    else
+        STATE="${C_TOMATO}OFFLINE${C_RESET}"
+    fi
+
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}Status:${C_RESET} $STATE    ${C_GOLD}Port:${C_RESET} $PORT     ${C_GOLD}Ver:${C_RESET} 2.0         ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}  ${C_CREAM}[1]${C_RESET} Create ZiVPN User      ${C_SAGE}${ICON_USER}${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}  ${C_CREAM}[2]${C_RESET} List All Users         ${C_SAGE}${ICON_NET}${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}  ${C_CREAM}[3]${C_RESET} Delete User            ${C_SAGE}${ICON_TRASH}${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}  ${C_CREAM}[4]${C_RESET} Check Service Log      ${C_SAGE}${ICON_GEAR}${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}  ${C_CREAM}[5]${C_RESET} Sync SSH Users         ${C_SAGE}${ICON_ZIVPN}${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}  ${C_CREAM}[6]${C_RESET} Fix UDP Custom         ${C_SAGE}${ICON_GEAR}${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}  ${C_CREAM}[7]${C_RESET} Auto Delete Expired    ${C_SAGE}${ICON_TIME}${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET}  ${C_TOMATO}[0] Back to Main Menu${C_RESET}                                ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+    read -p "  Select Option : " opt
+
+    case $opt in
+        1) add_user ;;
+        2) list_users ;;
+        3) delete_user ;;
+        4) journalctl -u zivpn -n 20 --no-pager; read -p "Enter..." ;;
+        5) sync_ssh ;;
+        6) fix_udp ;;
+        7) /usr/local/sbin/xp-zivpn; echo "  Done."; sleep 1 ;;
+        0) menu; break ;;
+        *) echo "Invalid Option"; sleep 1 ;;
+    esac
+done

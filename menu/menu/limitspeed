@@ -1,0 +1,162 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - SPEED LIMITER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_SPEED="🚀"
+ICON_DOWN="⬇️"
+ICON_UP="⬆️"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_GEAR="⚙"
+ICON_STAR="✨"
+ICON_WARN="⚠️"
+
+# 3. Auto-Install Dependency
+if ! command -v wondershaper &> /dev/null; then
+    echo -e "${C_GOLD}${ICON_GEAR} Installing Wondershaper...${C_RESET}"
+    apt-get update && apt-get install wondershaper -y > /dev/null 2>&1
+fi
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(SPEED LIMITER)${C_RESET}            ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}HOKAGE LEGEND${C_RESET}                       ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+print_success() {
+    echo -e "  ${C_SAGE}${ICON_CHECK} SUCCESS:${C_RESET} ${C_CREAM}$1${C_RESET}"
+    sleep 1
+}
+
+# ==========================================================
+#  CORE LOGIC
+# ==========================================================
+
+# Detect Network Interface
+NIC=$(ip route show default | awk '{print $5}')
+STATUS_FILE="/home/limit"
+
+# Check Status
+if [[ -f "$STATUS_FILE" && "$(cat $STATUS_FILE)" == "start" ]]; then
+    STATUS_TEXT="${C_SAGE}ACTIVE ${ICON_CHECK}${C_RESET}"
+    # Try to read current limit if stored (Optional implementation)
+else
+    STATUS_TEXT="${C_TOMATO}INACTIVE ${ICON_CROSS}${C_RESET}"
+fi
+
+function start_limit() {
+    echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+    echo -e "${C_BURGUNDY}  |${C_RESET}                 ${C_GOLD}SET BANDWIDTH LIMIT${C_RESET}                ${C_BURGUNDY}|${C_RESET}"
+    echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+    
+    echo -e "  ${C_CREAM}Enter limit in Kbps (Example: 1024 for 1Mbps)${C_RESET}"
+    echo -e ""
+    
+    read -p "  ${ICON_DOWN} Max Download (Kbps): " down
+    read -p "  ${ICON_UP} Max Upload   (Kbps): " up
+
+    # Validate Input
+    if [[ -z "$down" || -z "$up" ]]; then
+        echo -e "  ${C_TOMATO}${ICON_CROSS} Error: Input cannot be empty.${C_RESET}"
+        sleep 1
+        return
+    fi
+    
+    # Validasi Angka
+    if ! [[ "$down" =~ ^[0-9]+$ ]] || ! [[ "$up" =~ ^[0-9]+$ ]]; then
+         echo -e "  ${C_TOMATO}${ICON_CROSS} Error: Please enter numeric values only.${C_RESET}"
+         sleep 1
+         return
+    fi
+
+    print_status "Applying Wondershaper Rules"
+    
+    # Apply Limit
+    wondershaper -a $NIC -d $down -u $up > /dev/null 2>&1
+    systemctl enable --now wondershaper.service > /dev/null 2>&1
+    
+    # Save State
+    echo "start" > "$STATUS_FILE"
+    
+    print_success "Bandwidth Limit Applied ($down/$up Kbps)"
+}
+
+function stop_limit() {
+    print_status "Removing Wondershaper Rules"
+    
+    # Clear Limit
+    wondershaper -ca $NIC > /dev/null 2>&1
+    systemctl stop wondershaper.service > /dev/null 2>&1
+    
+    # Update State
+    echo > "$STATUS_FILE"
+    rm -f "$STATUS_FILE"
+    
+    print_success "Bandwidth Limit Removed"
+}
+
+# ==========================================================
+#  MENU DISPLAY
+# ==========================================================
+
+draw_header
+
+# Display Interface Info
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+printf "${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-15s${C_RESET} : ${C_CREAM}%-32s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Interface" "$NIC"
+printf "${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-15s${C_RESET} : %-42s ${C_BURGUNDY}║${C_RESET}\n" "Current Status" "$STATUS_TEXT"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}[1]${C_RESET} ${C_GOLD}Start Limiting Speed${C_RESET}                             ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}[2]${C_RESET} ${C_GOLD}Stop / Unlimit Speed${C_RESET}                             ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                                                      ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_CREAM}[x]${C_RESET} ${C_TOMATO}Back to Menu${C_RESET}                                     ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+read -p "  Select Option : " num
+
+case $num in
+    1)
+        start_limit
+        ;;
+    2)
+        stop_limit
+        ;;
+    x|X)
+        menu
+        ;;
+    *)
+        echo -e "  ${C_TOMATO}Invalid Selection.${C_RESET}"
+        sleep 1
+        menu
+        ;;
+esac
+
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

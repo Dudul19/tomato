@@ -1,0 +1,149 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - VMESS MENU
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_VMESS="💠"
+ICON_ADD="➕"
+ICON_TRIAL="⏳"
+ICON_RENEW="🔄"
+ICON_CHECK="🔍"
+ICON_DATA="📊"
+ICON_LIST="📜"
+ICON_DEL="🗑️"
+ICON_STAR="✨"
+ICON_EXIT="🔙"
+
+# ==========================================================
+#  PERMISSION CHECK
+# ==========================================================
+IPVPES="https://raw.githubusercontent.com/dudul19/tomato/main/izin"
+
+function checking_sc() {
+    ipsaya=$(curl -sS ipv4.icanhazip.com)
+    data_server=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+    date_list=$(date +"%Y-%m-%d" -d "$data_server")
+    
+    useexp=$(wget -qO- $IPVPES | grep $ipsaya | awk '{print $3}')
+    
+    if [[ "$date_list" < "$useexp" ]]; then
+        return 0
+    else
+        clear
+        echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET}              ${C_TOMATO}🚫 ACCESS DENIED 🚫${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}Your VPS IP has been banned or not registered!${C_RESET}       ${C_BURGUNDY}║${C_RESET}"
+        echo -e "${C_BURGUNDY}║${C_RESET}                                                      ${C_BURGUNDY}║${C_RESET}"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : ${C_TOMATO}%-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "IP Address" "$ipsaya"
+        printf "${C_BURGUNDY}║${C_RESET} ${C_CREAM}%-12s${C_RESET} : ${C_SAGE}%-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Contact" "t.me/dudulrealnofek"
+        echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+        exit 1
+    fi
+}
+
+# Perform Check
+checking_sc
+
+# ==========================================================
+#  UI FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    # Ambil Domain (Optional)
+    domain=$(cat /etc/xray/domain 2>/dev/null || echo "No Domain")
+    
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(VMESS MENU)${C_RESET}               ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_VMESS} HOST   : ${C_CREAM}$domain${C_RESET}                  ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# ==========================================================
+#  MAIN MENU
+# ==========================================================
+
+draw_header
+
+# --- Creation ---
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET}                 ${C_GOLD}ACCOUNT CREATION${C_RESET}                     ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[01]${C_RESET} ${C_CREAM}Create Account${C_RESET}        ${C_SAGE}${ICON_ADD}${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[02]${C_RESET} ${C_CREAM}Trial Account${C_RESET}         ${C_SAGE}${ICON_TRIAL}${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# --- Management ---
+echo -e "${C_BURGUNDY}║${C_RESET}                ${C_GOLD}ACCOUNT MANAGEMENT${C_RESET}                    ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[03]${C_RESET} ${C_CREAM}Delete Account${C_RESET}        ${C_TOMATO}${ICON_DEL}${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[04]${C_RESET} ${C_CREAM}Renew Account${C_RESET}         ${C_SAGE}${ICON_RENEW}${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+
+# --- Monitoring ---
+echo -e "${C_BURGUNDY}║${C_RESET}                  ${C_GOLD}USER MONITORING${C_RESET}                      ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[05]${C_RESET} ${C_CREAM}Monitor Logins${C_RESET}        ${C_SAGE}${ICON_CHECK}${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[06]${C_RESET} ${C_CREAM}Member List${C_RESET}           ${C_SAGE}${ICON_LIST}${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}[07]${C_RESET} ${C_CREAM}Check Data User${C_RESET}       ${C_SAGE}${ICON_DATA}${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}[x]${C_RESET} ${C_TOMATO}Back to Main Menu${C_RESET}     ${C_GOLD}${ICON_EXIT}${C_RESET}                        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+echo -e ""
+
+read -p "  Select From Options : " menu
+echo -e ""
+
+case $menu in
+    1|01)
+        clear
+        addws
+        ;;
+    2|02)
+        clear
+        trialws
+        ;;
+    3|03)
+        clear
+        delws
+        ;;
+    4|04)
+        clear
+        renewws
+        ;;
+    5|05)
+        clear
+        cekws
+        ;;
+    6|06)
+        clear
+        member-ws
+        ;;
+    7|07)
+        clear
+        datauser
+        ;;
+    x|X)
+        menu
+        ;;
+    *)
+        echo -e "  ${C_TOMATO}Please enter a valid number!${C_RESET}"
+        sleep 1
+        m-vmess
+        ;;
+esac

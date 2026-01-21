@@ -1,0 +1,144 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - DELETE SSH USER
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_TRASH="🗑️"
+ICON_USER="👤"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_GEAR="⚙"
+ICON_STAR="✨"
+ICON_WARN="⚠️"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MANAGER${C_RESET} ${C_GOLD}(DELETE SSH USER)${C_RESET}          ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+print_status() {
+    echo -e "  ${C_GOLD}${ICON_GEAR} $1...${C_RESET}"
+    sleep 0.5
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# 1. LIST USERS
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}               ${C_GOLD}REGISTERED SSH USERS${C_RESET}                 ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+printf "  ${C_GOLD}%-20s %-20s${C_RESET}\n" "USERNAME" "EXPIRY DATE"
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+
+count=0
+while read -r line; do
+    AKUN=$(echo $line | cut -d: -f1)
+    ID=$(echo $line | cut -d: -f3)
+    
+    # Filter UID >= 1000 dan bukan nobody
+    if [[ $ID -ge 1000 && "$AKUN" != "nobody" && "$AKUN" != "root" ]]; then
+        # Ambil tanggal expired
+        exp_date=$(chage -l "$AKUN" | grep "Account expires" | awk -F": " '{print $2}')
+        if [[ "$exp_date" == "never" || -z "$exp_date" ]]; then
+            exp_date="Never"
+        fi
+        
+        printf "  ${C_CREAM}%-20s${C_RESET} ${C_SAGE}%-20s${C_RESET}\n" "$AKUN" "$exp_date"
+        ((count++))
+    fi
+done < /etc/passwd
+
+if [[ $count -eq 0 ]]; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} No SSH users found.${C_RESET}"
+    echo -e ""
+    read -n 1 -s -r -p "Press any key to return..."
+    menu
+    exit 0
+fi
+
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e ""
+
+# 2. INPUT USER
+echo -e "  ${C_GOLD}[?] Input Username to Delete :${C_RESET}"
+read -p "      > " user
+
+# Validasi Input
+if [[ -z "$user" ]]; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Error: Input cannot be empty.${C_RESET}"
+    sleep 1
+    menu
+    exit 0
+fi
+
+# Validasi Existence
+if ! getent passwd "$user" > /dev/null 2>&1; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} Error: User '$user' not found.${C_RESET}"
+    sleep 1
+    menu
+    exit 0
+fi
+
+# Validasi Root/Protected
+if [[ "$user" == "root" ]]; then
+    echo -e "  ${C_TOMATO}${ICON_WARN} Error: Cannot delete root user!${C_RESET}"
+    sleep 1
+    menu
+    exit 0
+fi
+
+# 3. DELETION PROCESS
+print_status "Removing SSH User & Data"
+
+# Lock user
+passwd -l "$user" > /dev/null 2>&1
+
+# Kill user processes
+pkill -u "$user" > /dev/null 2>&1
+
+# Delete user and home directory
+userdel -f -r "$user" > /dev/null 2>&1
+
+# Cleanup Database & Limit Files
+if [ -f /etc/ssh/.ssh.db ]; then
+    sed -i "/^#ssh# ${user} /d" /etc/ssh/.ssh.db
+fi
+rm -f /etc/kyt/limit/ssh/ip/$user
+rm -f /etc/ssh/$user
+
+# 4. SUCCESS OUTPUT
+clear
+echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+echo -e "${C_BURGUNDY}║${C_RESET} ${C_TOMATO}${ICON_TRASH}       ${C_GOLD}ACCOUNT DELETED SUCCESSFULLY${C_RESET}       ${C_TOMATO}${ICON_TRASH}${C_RESET}        ${C_BURGUNDY}║${C_RESET}"
+echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Username" "$user"
+printf " ${C_BURGUNDY}║${C_RESET} ${C_GOLD}%-12s${C_RESET} ${C_CREAM}: %-35s${C_RESET} ${C_BURGUNDY}║${C_RESET}\n" "Status" "Removed from System"
+echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu

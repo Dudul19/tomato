@@ -1,0 +1,108 @@
+#!/bin/bash
+
+# ==========================================================
+#  TOMATO LUXE THEME ENGINE - SHADOWSOCKS MONITOR
+# ==========================================================
+
+# 1. Palette Definition (True Color)
+C_TOMATO="\033[38;2;217;69;57m"   # Primary Red
+C_BURGUNDY="\033[38;2;143;38;38m" # Border Red
+C_SAGE="\033[38;2;148;180;159m"   # Success Green
+C_GOLD="\033[38;2;230;203;165m"   # Warning/Highlight
+C_CREAM="\033[38;2;253;251;247m"  # Text
+C_RESET="\033[0m"
+
+# 2. Icons
+ICON_TOMATO="🍅"
+ICON_USER="👤"
+ICON_IP="🌐"
+ICON_CHECK="✔"
+ICON_CROSS="✖"
+ICON_LIST="📜"
+ICON_STAR="✨"
+
+# ==========================================================
+#  HELPER FUNCTIONS
+# ==========================================================
+
+draw_header() {
+    clear
+    echo -e "${C_BURGUNDY}╔══════════════════════════════════════════════════════╗${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_SAGE}${ICON_TOMATO}    ${C_TOMATO}TOMATO MONITOR${C_RESET} ${C_GOLD}(SHADOWSOCKS LOGIN)${C_RESET}          ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╠══════════════════════════════════════════════════════╣${C_RESET}"
+    echo -e "${C_BURGUNDY}║${C_RESET} ${C_GOLD}${ICON_STAR} AUTHOR : ${C_CREAM}DUDUL (TEA V.1.0)${C_RESET}                   ${C_BURGUNDY}║${C_RESET}"
+    echo -e "${C_BURGUNDY}╚══════════════════════════════════════════════════════╝${C_RESET}"
+    echo -e ""
+}
+
+# ==========================================================
+#  MAIN LOGIC
+# ==========================================================
+
+draw_header
+
+# Prepare Temp Files
+echo -n > /tmp/other.txt
+echo -n > /tmp/ipshadowsocks.txt
+
+# Get Users from Config (Format: #!# username exp)
+data=($(grep '^#!#' /etc/xray/config.json | cut -d ' ' -f 2 | sort | uniq))
+
+echo -e "${C_BURGUNDY}  .----------------------------------------------------.${C_RESET}"
+echo -e "${C_BURGUNDY}  |${C_RESET}                  ${C_GOLD}LIVE USER ACTIVITY${C_RESET}                  ${C_BURGUNDY}|${C_RESET}"
+echo -e "${C_BURGUNDY}  '----------------------------------------------------'${C_RESET}"
+
+total_users=${#data[@]}
+if [[ $total_users -eq 0 ]]; then
+    echo -e "  ${C_TOMATO}${ICON_CROSS} No Shadowsocks users found in config.${C_RESET}"
+else
+    # Cache log file once to memory/variable for speed
+    # Ambil 1000 baris terakhir log akses
+    log_content=$(tail -n 1000 /var/log/xray/access.log)
+
+    found_activity=0
+
+    for akun in "${data[@]}"; do
+        if [[ -z "$akun" ]]; then continue; fi
+
+        # Reset temp file per user
+        > /tmp/ipshadowsocks.txt
+
+        # Filter IPs associated with this user
+        # Format log Xray biasanya: ... tcp:IP:PORT ... email: user
+        user_ips=$(echo "$log_content" | grep -w "$akun" | awk '{print $3}' | sed 's/tcp://g' | cut -d ":" -f 1 | sort | uniq)
+
+        if [[ -n "$user_ips" ]]; then
+            echo "$user_ips" > /tmp/ipshadowsocks.txt
+            
+            # Display User Header
+            echo -e "  ${C_SAGE}${ICON_USER} User :${C_RESET} ${C_GOLD}$akun${C_RESET}"
+            echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+            
+            # Display IPs
+            count=1
+            while IFS= read -r ip; do
+                printf "    ${C_BURGUNDY}├─${C_RESET} ${C_GOLD}[%02d]${C_RESET} ${C_CREAM}%-15s${C_RESET} ${C_SAGE}${ICON_IP}${C_RESET}\n" "$count" "$ip"
+                ((count++))
+            done < /tmp/ipshadowsocks.txt
+            
+            echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+            found_activity=1
+        fi
+    done
+
+    if [[ $found_activity -eq 0 ]]; then
+        echo -e "  ${C_CREAM}No active login sessions detected right now.${C_RESET}"
+    fi
+fi
+
+# Cleanup
+rm -rf /tmp/other.txt
+rm -rf /tmp/ipshadowsocks.txt
+
+echo -e ""
+echo -e "${C_BURGUNDY}  ──────────────────────────────────────────────────────${C_RESET}"
+echo -e "  ${C_GOLD}${ICON_STAR} Monitor Completed.${C_RESET}"
+echo -e ""
+read -n 1 -s -r -p "Press any key to return..."
+menu
